@@ -1,0 +1,62 @@
+package com.agridirect.auth;
+
+import com.agridirect.auth.dto.AuthResponse;
+import com.agridirect.auth.dto.LoginRequest;
+import com.agridirect.auth.dto.RegisterRequest;
+import com.agridirect.common.dto.ApiResponse;
+import com.agridirect.common.exception.ApiException;
+import com.agridirect.user.User;
+import com.agridirect.user.UserService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    @Autowired
+    private AuthService authService;
+
+    @Autowired
+    private UserService userService;
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest req) {
+        AuthResponse response = authService.register(req);
+        return ResponseEntity.ok(ApiResponse.success("Registration successful", response));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest req) {
+        AuthResponse response = authService.login(req);
+        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<User>> getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String userId = auth.getName();
+        User user = userService.findById(UUID.fromString(userId));
+        return ResponseEntity.ok(ApiResponse.success(user));
+    }
+
+    @PutMapping("/fcm-token")
+    public ResponseEntity<ApiResponse<Void>> updateFcmToken(@RequestBody Map<String, String> body) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String userId = auth.getName();
+        String fcmToken = body.get("fcmToken");
+        if (fcmToken == null || fcmToken.isBlank()) {
+            throw new ApiException("fcmToken is required", HttpStatus.BAD_REQUEST);
+        }
+        userService.updateFcmToken(UUID.fromString(userId), fcmToken);
+        return ResponseEntity.ok(ApiResponse.success("FCM token updated", null));
+    }
+}
