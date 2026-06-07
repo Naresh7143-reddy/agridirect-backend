@@ -81,8 +81,7 @@ public class AuthService {
                         .build());
             }
 
-            String token = jwtUtil.generateToken(user.getId().toString(), user.getRole(), phone);
-            return new AuthResponse(token, user.getRole(), user.getName(), user.getId().toString(), phone);
+            return buildAuthResponse(user);
 
         } catch (ApiException e) {
             throw e;
@@ -108,8 +107,7 @@ public class AuthService {
                 userRepository.save(user);
             }
 
-            String token = jwtUtil.generateToken(user.getId().toString(), user.getRole(), phone);
-            return new AuthResponse(token, user.getRole(), user.getName(), user.getId().toString(), phone);
+            return buildAuthResponse(user);
 
         } catch (ApiException e) {
             throw e;
@@ -118,7 +116,62 @@ public class AuthService {
         }
     }
 
+    /**
+     * Exchange a valid refresh token for a fresh access token.
+     * Used by the app's axios interceptor when a request gets a 401.
+     */
+    public AuthResponse.TokensDto refresh(String refreshToken) {
+        try {
+            if (refreshToken == null || !jwtUtil.isTokenValid(refreshToken)) {
+                throw new ApiException("Invalid or expired refresh token", HttpStatus.UNAUTHORIZED);
+            }
+            String userId = jwtUtil.extractUserId(refreshToken);
+            User user = userRepository.findById(java.util.UUID.fromString(userId))
+                    .orElseThrow(() -> new ApiException("User not found", HttpStatus.UNAUTHORIZED));
+
+            if (!user.isActive()) {
+                throw new ApiException("Account has been blocked. Contact support.", HttpStatus.FORBIDDEN);
+            }
+
+            String newAccessToken = jwtUtil.generateToken(user.getId().toString(), user.getRole(), user.getPhone());
+            String newRefreshToken = jwtUtil.generateRefreshToken(user.getId().toString());
+            return new AuthResponse.TokensDto(newAccessToken, newRefreshToken, jwtUtil.getAccessTokenExpirySeconds());
+
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException("Token refresh failed", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
     public Optional<User> getCurrentUser(String userId) {
         return userRepository.findById(java.util.UUID.fromString(userId));
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private AuthResponse buildAuthResponse(User user) {
+        String accessToken = jwtUtil.generateToken(user.getId().toString(), user.getRole(), user.getPhone());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId().toString());
+
+        AuthResponse.UserDto userDto = new AuthResponse.UserDto(
+                user.getId().toString(),
+                user.getName(),
+                user.getPhone(),
+                user.getEmail(),
+                user.getRole(),
+                true,                  // isVerified — phone is verified via Firebase OTP at this point
+                !user.isActive(),      // isBlocked
+                user.getFcmToken(),
+                null,                  // avatarUrl — not tracked on User entity yet
+                user.getCreatedAt(),
+                user.getCreatedAt()    // updatedAt — not tracked on User entity yet
+        );
+
+        AuthResponse.TokensDto tokensDto = new AuthResponse.TokensDto(
+                accessToken, refreshToken, jwtUtil.getAccessTokenExpirySeconds()
+        );
+
+        return new AuthResponse(userDto, tokensDto);
     }
 }

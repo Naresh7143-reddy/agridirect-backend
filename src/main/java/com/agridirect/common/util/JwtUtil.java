@@ -34,6 +34,23 @@ public class JwtUtil {
                 .compact();
     }
 
+    // 30 days, in milliseconds — long-lived refresh token
+    private static final long REFRESH_EXPIRATION = 30L * 24 * 60 * 60 * 1000;
+
+    public String generateRefreshToken(String userId) {
+        return Jwts.builder()
+                .setSubject(userId)
+                .claim("type", "refresh")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + REFRESH_EXPIRATION))
+                .signWith(getKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public long getAccessTokenExpirySeconds() {
+        return expiration / 1000;
+    }
+
     public Claims extractClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getKey())

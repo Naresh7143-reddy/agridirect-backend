@@ -46,6 +46,20 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<AuthResponse.TokensDto>> refresh(@RequestBody Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+        AuthResponse.TokensDto tokens = authService.refresh(refreshToken);
+        return ResponseEntity.ok(ApiResponse.success("Token refreshed", tokens));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout() {
+        // Stateless JWT — client simply discards tokens. Endpoint exists so the
+        // app's logout call doesn't 404.
+        return ResponseEntity.ok(ApiResponse.success("Logged out", null));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<User>> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
