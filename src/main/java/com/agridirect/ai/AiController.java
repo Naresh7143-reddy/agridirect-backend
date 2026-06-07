@@ -47,6 +47,24 @@ public class AiController {
                 geminiService.getPriceForecast(cropName, location)));
     }
 
+    @PostMapping("/advice")
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<ApiResponse<String>> postCropAdvice(@RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.success(
+                geminiService.getCropAdvice(
+                        body.get("season"),
+                        body.get("location"),
+                        body.get("soilType"),
+                        body.get("waterAvailability"))));
+    }
+
+    @PostMapping("/price-forecast")
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<ApiResponse<String>> postPriceForecast(@RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.success(
+                geminiService.getPriceForecast(body.get("cropName"), body.get("location"))));
+    }
+
     @PostMapping("/chat")
     @PreAuthorize("hasRole('FARMER')")
     public ResponseEntity<ApiResponse<String>> chat(@RequestBody Map<String, String> body) {

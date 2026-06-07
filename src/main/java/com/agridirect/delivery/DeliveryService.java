@@ -9,7 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -58,5 +60,62 @@ public class DeliveryService {
             }
         });
         return saved;
+    }
+
+    public Order getOrderById(UUID agentId, UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ApiException("Order not found", HttpStatus.NOT_FOUND));
+        if (!agentId.equals(order.getDeliveryAgentId())) {
+            throw new ApiException("Order not assigned to this agent", HttpStatus.FORBIDDEN);
+        }
+        return order;
+    }
+
+    public Order confirmOrder(UUID agentId, UUID orderId) {
+        Order order = getOrderById(agentId, orderId);
+        order.setStatus("DELIVERED");
+        Order saved = orderRepository.save(order);
+        userRepository.findById(order.getBuyerId()).ifPresent(buyer ->
+                notificationService.sendOrderDelivered(buyer.getFcmToken()));
+        return saved;
+    }
+
+    public DeliveryProfile updatePhoto(UUID userId, String url) {
+        DeliveryProfile profile = getProfile(userId);
+        profile.setPhotoUrl(url);
+        return deliveryRepository.save(profile);
+    }
+
+    public DeliveryProfile updateLocation(UUID userId, Double lat, Double lng) {
+        DeliveryProfile profile = getProfile(userId);
+        profile.setCurrentLat(lat);
+        profile.setCurrentLng(lng);
+        return deliveryRepository.save(profile);
+    }
+
+    public DeliveryProfile updateProfile(UUID userId, java.util.Map<String, Object> updates) {
+        DeliveryProfile profile = getProfile(userId);
+        if (updates.get("vehicleType") != null)   profile.setVehicleType((String) updates.get("vehicleType"));
+        if (updates.get("vehicleNumber") != null) profile.setLicenseNo((String) updates.get("vehicleNumber"));
+        if (updates.get("licenseNumber") != null) profile.setLicenseNo((String) updates.get("licenseNumber"));
+        return deliveryRepository.save(profile);
+    }
+
+    public Map<String, Object> getEarnings(UUID agentId) {
+        List<Order> delivered = orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(agentId)
+                .stream().filter(o -> "DELIVERED".equals(o.getStatus())).toList();
+        double total = delivered.stream()
+                .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount() * 0.05 : 0.0)
+                .sum();
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", total);
+        result.put("pending", 0.0);
+        result.put("paid", total);
+        result.put("today", 0.0);
+        result.put("thisWeek", 0.0);
+        result.put("thisMonth", total);
+        result.put("byDate", List.of());
+        result.put("totalDeliveries", delivered.size());
+        return result;
     }
 }

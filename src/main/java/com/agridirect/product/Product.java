@@ -44,6 +44,9 @@ public class Product {
     @Column(name = "is_available")
     private boolean isAvailable = true;
 
+    @Column(name = "approval_status")
+    private String approvalStatus = "APPROVED";
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -97,6 +100,7 @@ public class Product {
     public Double getStockQuantity() { return stockQuantity; }
     public List<String> getImageUrls(){ return imageUrls; }
     public boolean isAvailable()     { return isAvailable; }
+    public String getApprovalStatus(){ return approvalStatus; }
     public LocalDateTime getCreatedAt(){ return createdAt; }
     public LocalDateTime getUpdatedAt(){ return updatedAt; }
 
@@ -110,6 +114,7 @@ public class Product {
     public void setStockQuantity(Double v) { this.stockQuantity = v; }
     public void setImageUrls(List<String> v){ this.imageUrls = v; }
     public void setAvailable(boolean v)    { this.isAvailable = v; }
+    public void setApprovalStatus(String v){ this.approvalStatus = v; }
     public void setCreatedAt(LocalDateTime v){ this.createdAt = v; }
     public void setUpdatedAt(LocalDateTime v){ this.updatedAt = v; }
 }

@@ -180,4 +180,28 @@ public class PaymentService {
         return paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new ApiException("Payment not found for order", HttpStatus.NOT_FOUND));
     }
+
+    public Payment getPaymentById(UUID paymentId) {
+        return paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ApiException("Payment not found", HttpStatus.NOT_FOUND));
+    }
+
+    @Transactional
+    public Payment initiateRefund(UUID paymentId, Double amount, String reason) {
+        Payment payment = getPaymentById(paymentId);
+        if (!"PAID".equals(payment.getStatus())) {
+            throw new ApiException("Only paid payments can be refunded", HttpStatus.BAD_REQUEST);
+        }
+        String refundId = "rfnd_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        payment.setRefundId(refundId);
+        payment.setRefundStatus("PENDING");
+        payment.setRefundAmount(amount != null ? amount : payment.getAmount());
+        payment.setRefundReason(reason);
+        return paymentRepository.save(payment);
+    }
+
+    public Payment getRefundById(String refundId) {
+        return paymentRepository.findByRefundId(refundId)
+                .orElseThrow(() -> new ApiException("Refund not found", HttpStatus.NOT_FOUND));
+    }
 }

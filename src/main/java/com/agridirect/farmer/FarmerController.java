@@ -1,6 +1,7 @@
 package com.agridirect.farmer;
 
 import com.agridirect.common.dto.ApiResponse;
+import com.agridirect.product.Product;
 import com.agridirect.storage.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -53,5 +54,32 @@ public class FarmerController {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         String url = cloudinaryService.uploadProfilePhoto(file, userId);
         return ResponseEntity.ok(ApiResponse.success("Profile photo updated", url));
+    }
+
+    @GetMapping("/bank-details")
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<ApiResponse<BankDetails>> getBankDetails() {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(ApiResponse.success(farmerService.getBankDetails(UUID.fromString(userId))));
+    }
+
+    @PutMapping("/bank-details")
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<ApiResponse<BankDetails>> saveBankDetails(@RequestBody Map<String, Object> body) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(ApiResponse.success("Bank details saved", farmerService.saveBankDetails(UUID.fromString(userId), body)));
+    }
+
+    @GetMapping("/{farmerId}/public")
+    public ResponseEntity<ApiResponse<FarmerProfile>> getPublicProfile(@PathVariable UUID farmerId) {
+        return ResponseEntity.ok(ApiResponse.success(farmerService.getPublicProfile(farmerId)));
+    }
+
+    @PutMapping("/products/{id}/availability")
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<ApiResponse<Product>> updateAvailability(@PathVariable UUID id, @RequestBody Map<String, Boolean> body) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean available = Boolean.TRUE.equals(body.get("available"));
+        return ResponseEntity.ok(ApiResponse.success(farmerService.updateAvailability(UUID.fromString(userId), id, available)));
     }
 }

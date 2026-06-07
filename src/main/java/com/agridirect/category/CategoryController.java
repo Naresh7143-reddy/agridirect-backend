@@ -1,6 +1,7 @@
 package com.agridirect.category;
 
 import com.agridirect.common.dto.ApiResponse;
+import com.agridirect.product.Product;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +20,16 @@ public class CategoryController {
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<List<Category>>> getAllCategories() {
         return ResponseEntity.ok(ApiResponse.success(categoryService.getAllCategories()));
+    }
+
+    @GetMapping("/categories/{id}")
+    public ResponseEntity<ApiResponse<Category>> getCategoryById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(categoryService.getCategoryById(id)));
+    }
+
+    @GetMapping("/categories/{id}/products")
+    public ResponseEntity<ApiResponse<List<Product>>> getCategoryProducts(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(categoryService.getCategoryProducts(id)));
     }
 
     @PostMapping("/admin/categories")

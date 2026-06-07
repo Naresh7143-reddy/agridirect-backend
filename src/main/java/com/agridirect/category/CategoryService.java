@@ -1,6 +1,8 @@
 package com.agridirect.category;
 
 import com.agridirect.common.exception.ApiException;
+import com.agridirect.product.Product;
+import com.agridirect.product.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -12,9 +14,39 @@ import java.util.UUID;
 public class CategoryService {
 
     @Autowired private CategoryRepository categoryRepository;
+    @Autowired private ProductRepository productRepository;
 
     public List<Category> getAllCategories() {
         return categoryRepository.findByIsActiveTrue();
+    }
+
+    public Category getCategoryById(UUID id) {
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new ApiException("Category not found", HttpStatus.NOT_FOUND));
+    }
+
+    public List<Product> getCategoryProducts(UUID id) {
+        getCategoryById(id);
+        return productRepository.findByCategoryIdAndIsAvailableTrue(id);
+    }
+
+    public Category updateCategory(UUID id, String name, String imageUrl, Boolean isActive) {
+        Category category = getCategoryById(id);
+        if (name != null) category.setName(name);
+        if (imageUrl != null) category.setImageUrl(imageUrl);
+        if (isActive != null) category.setActive(isActive);
+        return categoryRepository.save(category);
+    }
+
+    public Category updateCategoryImage(UUID id, String imageUrl) {
+        Category category = getCategoryById(id);
+        category.setImageUrl(imageUrl);
+        return categoryRepository.save(category);
+    }
+
+    public void deleteCategory(UUID id) {
+        Category category = getCategoryById(id);
+        categoryRepository.delete(category);
     }
 
     public Category createCategory(String name, String imageUrl) {

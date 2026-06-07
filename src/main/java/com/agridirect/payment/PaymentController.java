@@ -51,6 +51,49 @@ public class PaymentController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/{paymentId}")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<Payment>> getPaymentById(@PathVariable UUID paymentId) {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentById(paymentId)));
+    }
+
+    @GetMapping("/order/{orderId}")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<Payment>> getPaymentByOrder(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentByOrderId(orderId)));
+    }
+
+    @PostMapping("/{paymentId}/refund")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> refund(@PathVariable UUID paymentId, @RequestBody(required = false) Map<String, Object> body) {
+        Double amount = null;
+        String reason = null;
+        if (body != null) {
+            if (body.get("amount") != null) amount = ((Number) body.get("amount")).doubleValue();
+            if (body.get("reason") != null) reason = (String) body.get("reason");
+        }
+        Payment payment = paymentService.initiateRefund(paymentId, amount, reason);
+        Map<String, Object> result = Map.of(
+                "refundId", payment.getRefundId(),
+                "status", payment.getRefundStatus(),
+                "amount", payment.getRefundAmount(),
+                "currency", payment.getCurrency()
+        );
+        return ResponseEntity.ok(ApiResponse.success("Refund initiated", result));
+    }
+
+    @GetMapping("/refunds/{refundId}")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRefundStatus(@PathVariable String refundId) {
+        Payment payment = paymentService.getRefundById(refundId);
+        Map<String, Object> result = Map.of(
+                "refundId", payment.getRefundId(),
+                "status", payment.getRefundStatus(),
+                "amount", payment.getRefundAmount()
+        );
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
     @GetMapping("/history")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<List<Payment>>> getHistory() {

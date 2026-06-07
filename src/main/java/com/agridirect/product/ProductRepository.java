@@ -20,4 +20,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> findByNameContainingIgnoreCaseAndIsAvailableTrue(String name);
 
     long countByFarmerIdAndIsAvailableTrue(UUID farmerId);
+
+    List<Product> findByApprovalStatus(String approvalStatus);
 }

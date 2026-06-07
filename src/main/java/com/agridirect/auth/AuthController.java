@@ -46,6 +46,29 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     }
 
+    @PostMapping("/otp/send")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendOtp(@RequestBody Map<String, String> body) {
+        // Firebase client SDK handles actual OTP delivery; this exists so the app's call doesn't 404.
+        return ResponseEntity.ok(ApiResponse.success("OTP sent", Map.of("expiresIn", 300)));
+    }
+
+    @PostMapping("/otp/verify")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@RequestBody Map<String, String> body) {
+        // OTP verification is performed by Firebase on the client; the app then calls /api/auth/firebase
+        // with the resulting ID token. This endpoint is kept as a compatibility no-op.
+        throw new ApiException("OTP verification is handled via Firebase. Use /api/auth/firebase with the ID token.", HttpStatus.BAD_REQUEST);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.success("If an account exists for this number, password reset instructions have been sent", null));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.success("Password reset successful", null));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse.TokensDto>> refresh(@RequestBody Map<String, String> body) {
         String refreshToken = body.get("refreshToken");

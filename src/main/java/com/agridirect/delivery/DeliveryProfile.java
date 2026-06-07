@@ -26,6 +26,15 @@ public class DeliveryProfile {
     @Column(name = "is_available")
     private boolean isAvailable = true;
 
+    @Column(name = "photo_url")
+    private String photoUrl;
+
+    @Column(name = "current_lat")
+    private Double currentLat;
+
+    @Column(name = "current_lng")
+    private Double currentLng;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -58,6 +67,9 @@ public class DeliveryProfile {
     public String getVehicleType()  { return vehicleType; }
     public String getLicenseNo()    { return licenseNo; }
     public boolean isAvailable()    { return isAvailable; }
+    public String getPhotoUrl()     { return photoUrl; }
+    public Double getCurrentLat()   { return currentLat; }
+    public Double getCurrentLng()   { return currentLng; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
     // Setters
@@ -66,5 +78,8 @@ public class DeliveryProfile {
     public void setVehicleType(String v)    { this.vehicleType = v; }
     public void setLicenseNo(String v)      { this.licenseNo = v; }
     public void setAvailable(boolean v)     { this.isAvailable = v; }
+    public void setPhotoUrl(String v)       { this.photoUrl = v; }
+    public void setCurrentLat(Double v)     { this.currentLat = v; }
+    public void setCurrentLng(Double v)     { this.currentLng = v; }
     public void setCreatedAt(LocalDateTime v){ this.createdAt = v; }
 }

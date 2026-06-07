@@ -29,6 +29,18 @@ public class Payment {
 
     private String status = "CREATED";
 
+    @Column(name = "refund_id")
+    private String refundId;
+
+    @Column(name = "refund_status")
+    private String refundStatus;
+
+    @Column(name = "refund_amount")
+    private Double refundAmount;
+
+    @Column(name = "refund_reason", columnDefinition = "TEXT")
+    private String refundReason;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -67,6 +79,10 @@ public class Payment {
     public Double getAmount()            { return amount; }
     public String getCurrency()          { return currency; }
     public String getStatus()            { return status; }
+    public String getRefundId()          { return refundId; }
+    public String getRefundStatus()      { return refundStatus; }
+    public Double getRefundAmount()      { return refundAmount; }
+    public String getRefundReason()      { return refundReason; }
     public LocalDateTime getCreatedAt()  { return createdAt; }
 
     public void setId(UUID v)                  { this.id = v; }
@@ -76,5 +92,9 @@ public class Payment {
     public void setAmount(Double v)            { this.amount = v; }
     public void setCurrency(String v)          { this.currency = v; }
     public void setStatus(String v)            { this.status = v; }
+    public void setRefundId(String v)          { this.refundId = v; }
+    public void setRefundStatus(String v)      { this.refundStatus = v; }
+    public void setRefundAmount(Double v)      { this.refundAmount = v; }
+    public void setRefundReason(String v)      { this.refundReason = v; }
     public void setCreatedAt(LocalDateTime v)  { this.createdAt = v; }
 }
