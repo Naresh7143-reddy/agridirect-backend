@@ -40,6 +40,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     }
 
+    @PostMapping("/firebase")
+    public ResponseEntity<ApiResponse<AuthResponse>> loginWithFirebase(@RequestBody LoginRequest req) {
+        AuthResponse response = authService.login(req);
+        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<User>> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
