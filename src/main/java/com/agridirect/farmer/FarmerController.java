@@ -22,16 +22,17 @@ public class FarmerController {
 
     @GetMapping("/profile")
     @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<ApiResponse<FarmerProfile>> getProfile() {
+    public ResponseEntity<ApiResponse<FarmerProfileResponse>> getProfile() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(ApiResponse.success(farmerService.getProfile(UUID.fromString(userId))));
+        return ResponseEntity.ok(ApiResponse.success(farmerService.getProfileResponse(UUID.fromString(userId))));
     }
 
     @PutMapping("/profile")
     @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<ApiResponse<FarmerProfile>> updateProfile(@RequestBody Map<String, Object> updates) {
+    public ResponseEntity<ApiResponse<FarmerProfileResponse>> updateProfile(@RequestBody Map<String, Object> updates) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(ApiResponse.success(farmerService.updateProfile(UUID.fromString(userId), updates)));
+        farmerService.updateProfile(UUID.fromString(userId), updates);
+        return ResponseEntity.ok(ApiResponse.success(farmerService.getProfileResponse(UUID.fromString(userId))));
     }
 
     @GetMapping("/dashboard")
@@ -71,8 +72,8 @@ public class FarmerController {
     }
 
     @GetMapping("/{farmerId}/public")
-    public ResponseEntity<ApiResponse<FarmerProfile>> getPublicProfile(@PathVariable UUID farmerId) {
-        return ResponseEntity.ok(ApiResponse.success(farmerService.getPublicProfile(farmerId)));
+    public ResponseEntity<ApiResponse<FarmerProfileResponse>> getPublicProfile(@PathVariable UUID farmerId) {
+        return ResponseEntity.ok(ApiResponse.success(farmerService.getProfileResponse(farmerId)));
     }
 
     @PutMapping("/products/{id}/availability")

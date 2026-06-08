@@ -28,6 +28,16 @@ public class FarmerService {
                 .orElseThrow(() -> new ApiException("Farmer profile not found", HttpStatus.NOT_FOUND));
     }
 
+    /** Builds the structured response DTO the mobile app expects (see FarmerProfileResponse). */
+    public FarmerProfileResponse getProfileResponse(UUID userId) {
+        FarmerProfile profile = getProfile(userId);
+        long totalProducts = productRepository.findByFarmerId(userId).size();
+        long totalSales = orderItemRepository.findByFarmerId(userId).stream()
+                .mapToLong(i -> i.getQuantity() != null ? i.getQuantity().longValue() : 0L)
+                .sum();
+        return FarmerProfileResponse.from(profile, totalProducts, totalSales);
+    }
+
     public FarmerProfile updateProfile(UUID userId, Map<String, Object> updates) {
         FarmerProfile profile = getProfile(userId);
         if (updates.get("farmName") != null)  profile.setFarmName((String) updates.get("farmName"));
