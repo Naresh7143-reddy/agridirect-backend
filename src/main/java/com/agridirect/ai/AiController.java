@@ -18,13 +18,14 @@ public class AiController {
 
     @PostMapping("/disease")
     @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<ApiResponse<String>> detectDisease(
+    public ResponseEntity<ApiResponse<DiseaseDetectionResult>> detectDisease(
             @RequestParam MultipartFile image,
             @RequestParam String cropName) throws Exception {
         String base64 = Base64.getEncoder().encodeToString(image.getBytes());
         String mimeType = image.getContentType();
-        String result = geminiService.detectDisease(base64, cropName, mimeType);
-        return ResponseEntity.ok(ApiResponse.success("Disease analysis complete", result));
+        String rawResult = geminiService.detectDisease(base64, cropName, mimeType);
+        DiseaseDetectionResult structured = DiseaseResultParser.parse(rawResult, cropName);
+        return ResponseEntity.ok(ApiResponse.success("Disease analysis complete", structured));
     }
 
     @GetMapping("/crop-advice")
@@ -67,8 +68,10 @@ public class AiController {
 
     @PostMapping("/chat")
     @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<ApiResponse<String>> chat(@RequestBody Map<String, String> body) {
-        return ResponseEntity.ok(ApiResponse.success(
-                geminiService.chat(body.get("message"), body.get("language"))));
+    public ResponseEntity<ApiResponse<ChatResponse>> chat(@RequestBody Map<String, Object> body) {
+        String message = body.get("message") == null ? null : body.get("message").toString();
+        String language = body.get("language") == null ? "English" : body.get("language").toString();
+        String reply = geminiService.chat(message, language);
+        return ResponseEntity.ok(ApiResponse.success(new ChatResponse(reply, language)));
     }
 }
