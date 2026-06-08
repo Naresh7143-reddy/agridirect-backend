@@ -1,5 +1,7 @@
 package com.agridirect.product.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -9,8 +11,12 @@ public class ProductRequest {
     private String description;
     private String unit;
     private Double price;
+    // Mobile app sends "stock" (see CreateProductRequest in src/types/product.ts);
+    // accept both names so the field isn't silently dropped as null.
+    @JsonAlias({"stock"})
     private Double stockQuantity;
     private UUID categoryId;
+    @JsonAlias({"images"})
     private List<String> imageUrls;
 
     public ProductRequest() {}
