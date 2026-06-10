@@ -35,8 +35,27 @@ public class GeminiService {
     @Value("${gemini.api-key:}")
     private String apiKey;
 
+    /**
+     * Configurable base URL. We ignore the model segment of this URL and pick
+     * from MODEL_FALLBACKS below — that way an outdated GEMINI_API_URL on
+     * Render (e.g. pointing at the retired gemini-1.5-flash) still works.
+     */
     @Value("${gemini.api-url:https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent}")
     private String apiUrl;
+
+    /**
+     * Models tried in order. As Google retires models, we fall through to the
+     * next one automatically rather than hard-failing. All are currently
+     * accessible on free-tier (as of 2026-06).
+     */
+    private static final String[] MODEL_FALLBACKS = {
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-exp",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash-002",
+            "gemini-1.5-pro-latest",
+    };
+    private static final String GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
 
     // ─── Public entry points ──────────────────────────────────────────────────
 
@@ -146,38 +165,53 @@ public class GeminiService {
         }
     }
 
-    /** Actual HTTP call. Returns the response text or null on failure. */
+    /**
+     * Tries each model in MODEL_FALLBACKS until one returns 2xx with text.
+     * Returns the parsed reply, or null if all attempts fail.
+     */
     private String callGeminiRaw(String jsonBody) {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("GEMINI_API_KEY not configured");
             return null;
         }
-        try {
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl + "?key=" + apiKey))
-                    .timeout(Duration.ofSeconds(25))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                    .build();
-            HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
-            if (res.statusCode() < 200 || res.statusCode() >= 300) {
-                log.error("Gemini API HTTP {} — body: {}", res.statusCode(),
-                        res.body() != null ? res.body().substring(0, Math.min(500, res.body().length())) : "(empty)");
-                return null;
+        for (String model : MODEL_FALLBACKS) {
+            String url = GEMINI_BASE + model + ":generateContent";
+            try {
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create(url + "?key=" + apiKey))
+                        .timeout(Duration.ofSeconds(25))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                        .build();
+                HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                int code = res.statusCode();
+                if (code < 200 || code >= 300) {
+                    log.warn("Gemini model {} returned HTTP {} — trying next fallback. Body: {}",
+                            model, code, snippet(res.body()));
+                    continue;
+                }
+                JsonNode root = MAPPER.readTree(res.body());
+                JsonNode text = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
+                if (text.isMissingNode() || text.isNull()) {
+                    log.warn("Gemini model {} returned 200 but no text. Body: {}", model, snippet(res.body()));
+                    continue;
+                }
+                String reply = text.asText();
+                if (reply != null && !reply.isBlank()) {
+                    log.info("Gemini model {} succeeded ({} chars)", model, reply.length());
+                    return reply.trim();
+                }
+            } catch (Exception e) {
+                log.warn("Gemini model {} threw {}: {}", model, e.getClass().getSimpleName(), e.getMessage());
             }
-            JsonNode root = MAPPER.readTree(res.body());
-            // candidates[0].content.parts[0].text
-            JsonNode text = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
-            if (text.isMissingNode() || text.isNull()) {
-                log.error("Gemini response missing text field: {}", res.body().substring(0, Math.min(500, res.body().length())));
-                return null;
-            }
-            String reply = text.asText();
-            return reply == null || reply.isBlank() ? null : reply.trim();
-        } catch (Exception e) {
-            log.error("Gemini call exception: {}", e.getMessage());
-            return null;
         }
+        log.error("All Gemini model fallbacks failed");
+        return null;
+    }
+
+    private static String snippet(String s) {
+        if (s == null) return "(empty)";
+        return s.length() > 400 ? s.substring(0, 400) + "..." : s;
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

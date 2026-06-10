@@ -30,13 +30,19 @@ public class GeminiDiagnosticController {
     @Value("${gemini.api-url:https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent}")
     private String apiUrl;
 
+    private static final String[] MODELS = {
+            "gemini-2.0-flash", "gemini-2.0-flash-exp",
+            "gemini-1.5-flash-latest", "gemini-1.5-flash-002",
+            "gemini-1.5-pro-latest"
+    };
+    private static final String GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
+
     @GetMapping("/gemini")
     public Map<String, Object> testGemini() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("keyConfigured", apiKey != null && !apiKey.isBlank());
         result.put("keyLength", apiKey == null ? 0 : apiKey.length());
         result.put("keyPrefix", apiKey == null || apiKey.length() < 4 ? "" : apiKey.substring(0, 4) + "...");
-        result.put("apiUrl", apiUrl);
 
         if (apiKey == null || apiKey.isBlank()) {
             result.put("status", "FAIL");
@@ -44,42 +50,56 @@ public class GeminiDiagnosticController {
             return result;
         }
 
-        try {
-            String body = "{\"contents\":[{\"parts\":[{\"text\":\"Say hello in one short sentence.\"}]}]}";
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
-                    .build();
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl + "?key=" + apiKey))
-                    .timeout(Duration.ofSeconds(25))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String body = "{\"contents\":[{\"parts\":[{\"text\":\"Say hello in one short sentence.\"}]}]}";
+        Map<String, Object> attempts = new LinkedHashMap<>();
+        result.put("attempts", attempts);
 
-            result.put("httpStatus", res.statusCode());
-            String respBody = res.body();
-            // Cap response body at 2KB
-            result.put("rawResponse", respBody == null ? null :
-                    (respBody.length() > 2000 ? respBody.substring(0, 2000) + "..." : respBody));
+        for (String model : MODELS) {
+            Map<String, Object> attempt = new LinkedHashMap<>();
+            String url = GEMINI_BASE + model + ":generateContent";
+            try {
+                HttpClient client = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(10))
+                        .build();
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create(url + "?key=" + apiKey))
+                        .timeout(Duration.ofSeconds(25))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
+                HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+                attempt.put("httpStatus", res.statusCode());
+                String respBody = res.body();
+                String snippet = respBody == null ? null :
+                        (respBody.length() > 800 ? respBody.substring(0, 800) + "..." : respBody);
+                attempt.put("body", snippet);
 
-            if (res.statusCode() >= 200 && res.statusCode() < 300) {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode root = mapper.readTree(respBody);
-                JsonNode text = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
-                result.put("status", text.isMissingNode() ? "FAIL" : "OK");
-                result.put("extractedReply", text.isMissingNode() ? null : text.asText());
-                if (text.isMissingNode()) {
-                    result.put("reason", "Response 200 but missing candidates[0].content.parts[0].text — possibly safety-blocked or quota issue");
+                if (res.statusCode() >= 200 && res.statusCode() < 300) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    JsonNode root = mapper.readTree(respBody);
+                    JsonNode text = root.path("candidates").path(0).path("content").path("parts").path(0).path("text");
+                    if (!text.isMissingNode()) {
+                        attempt.put("status", "OK");
+                        attempt.put("extractedReply", text.asText());
+                        attempts.put(model, attempt);
+                        result.put("status", "OK");
+                        result.put("workingModel", model);
+                        result.put("extractedReply", text.asText());
+                        return result;
+                    }
+                    attempt.put("status", "FAIL_NO_TEXT");
+                } else {
+                    attempt.put("status", "FAIL");
+                    attempt.put("reason", interpretError(res.statusCode(), respBody));
                 }
-            } else {
-                result.put("status", "FAIL");
-                result.put("reason", interpretError(res.statusCode(), respBody));
+            } catch (Exception e) {
+                attempt.put("status", "EXCEPTION");
+                attempt.put("reason", e.getClass().getSimpleName() + " — " + e.getMessage());
             }
-        } catch (Exception e) {
-            result.put("status", "FAIL");
-            result.put("reason", "Exception: " + e.getClass().getSimpleName() + " — " + e.getMessage());
+            attempts.put(model, attempt);
         }
+        result.put("status", "FAIL");
+        result.put("reason", "All models failed. See attempts for details.");
         return result;
     }
 
