@@ -33,52 +33,6 @@ public class GeminiDiagnosticController {
     @Value("${groq.api-key:}")
     private String groqKey;
 
-    @Value("${sarvam.api-key:}")
-    private String sarvamKey;
-
-    @org.springframework.web.bind.annotation.GetMapping("/sarvam")
-    public Map<String, Object> testSarvam() {
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("keyConfigured", sarvamKey != null && !sarvamKey.isBlank());
-        result.put("keyLength", sarvamKey == null ? 0 : sarvamKey.length());
-        result.put("keyPrefix", sarvamKey == null || sarvamKey.length() < 6 ? "" : sarvamKey.substring(0, 6) + "...");
-        if (sarvamKey == null || sarvamKey.isBlank()) {
-            result.put("status", "NOT_CONFIGURED");
-            result.put("reason", "SARVAM_API_KEY env var not set. Add to Render Environment.");
-            return result;
-        }
-        try {
-            String body = "{\"model\":\"sarvam-30b\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello in one short sentence.\"}],\"max_tokens\":200}";
-            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.sarvam.ai/v1/chat/completions"))
-                    .timeout(Duration.ofSeconds(45))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + sarvamKey)
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
-            result.put("httpStatus", res.statusCode());
-            String respBody = res.body();
-            result.put("rawResponse", respBody == null ? null :
-                    (respBody.length() > 1500 ? respBody.substring(0, 1500) + "..." : respBody));
-            if (res.statusCode() >= 200 && res.statusCode() < 300) {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode root = mapper.readTree(respBody);
-                JsonNode content = root.path("choices").path(0).path("message").path("content");
-                result.put("status", content.isMissingNode() || content.isNull() || content.asText().isBlank() ? "FAIL" : "OK");
-                result.put("extractedReply", content.isMissingNode() ? null : content.asText());
-            } else {
-                result.put("status", "FAIL");
-                result.put("reason", "Sarvam HTTP " + res.statusCode());
-            }
-        } catch (Exception e) {
-            result.put("status", "FAIL");
-            result.put("reason", "Exception: " + e.getClass().getSimpleName() + " — " + e.getMessage());
-        }
-        return result;
-    }
-
     @org.springframework.web.bind.annotation.GetMapping("/groq")
     public Map<String, Object> testGroq() {
         Map<String, Object> result = new LinkedHashMap<>();

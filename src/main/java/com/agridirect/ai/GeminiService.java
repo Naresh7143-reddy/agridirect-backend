@@ -27,7 +27,6 @@ import java.util.Map;
 @Service
 public class GeminiService {
 
-    @Autowired private SarvamService sarvamService;
     @Autowired private GroqService groqService;
 
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
@@ -75,26 +74,19 @@ public class GeminiService {
                 "Keep answers practical, simple, India-specific, and under 250 words. " +
                 "Use emojis sparingly for clarity (e.g. 🌾 💰 📊).";
 
-        // 1. Try Sarvam first (India-focused, native Indic language support)
-        if (sarvamService.isConfigured()) {
-            String sarvamReply = sarvamService.chat(systemPrompt, message);
-            if (sarvamReply != null && !sarvamReply.isBlank()) return sarvamReply;
-            log.warn("Sarvam failed — falling through to Groq");
-        }
-
-        // 2. Try Groq (free, fast)
+        // 1. Try Groq (Llama 3.3 70B — free, fast)
         if (groqService.isConfigured()) {
             String groqReply = groqService.chat(systemPrompt, message);
             if (groqReply != null && !groqReply.isBlank()) return groqReply;
             log.warn("Groq failed — falling through to Gemini");
         }
 
-        // 3. Try Gemini (requires billing / valid AIza key)
+        // 2. Try Gemini (requires billing / valid AIza key)
         String reply = tryGemini(systemPrompt + "\n\nFarmer's question: " + message);
         if (reply != null && !reply.isBlank()) return reply;
 
-        // 4. Last resort: keyword-matched knowledge base
-        log.warn("Sarvam, Groq, and Gemini all failed for chat — using knowledge-base fallback");
+        // 3. Last resort: keyword-matched knowledge base
+        log.warn("Both Groq and Gemini failed for chat — using knowledge-base fallback");
         return FarmingKnowledge.findReply(message);
     }
 
@@ -162,10 +154,6 @@ public class GeminiService {
                 ". Soil type: " + safe(soilType, "loamy") +
                 ". Water: " + safe(waterAvailability, "moderate");
 
-        if (sarvamService.isConfigured()) {
-            String r = sarvamService.chat(systemPrompt, userMsg);
-            if (r != null && !r.isBlank()) return r;
-        }
         if (groqService.isConfigured()) {
             String r = groqService.chat(systemPrompt, userMsg);
             if (r != null && !r.isBlank()) return r;
@@ -182,10 +170,6 @@ public class GeminiService {
                 "NEXT 30 DAYS FORECAST, BEST TIME TO SELL, FACTORS, NEARBY MARKETS, TIPS.";
         String userMsg = "Provide market analysis for " + safe(cropName, "crop") + " in " + safe(location, "India") + ".";
 
-        if (sarvamService.isConfigured()) {
-            String r = sarvamService.chat(systemPrompt, userMsg);
-            if (r != null && !r.isBlank()) return r;
-        }
         if (groqService.isConfigured()) {
             String r = groqService.chat(systemPrompt, userMsg);
             if (r != null && !r.isBlank()) return r;
