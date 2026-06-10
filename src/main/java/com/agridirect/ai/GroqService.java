@@ -39,6 +39,14 @@ public class GroqService {
             "mixtral-8x7b-32768",
     };
 
+    /** Vision-capable models for image analysis (disease detection). */
+    private static final String[] VISION_MODELS = {
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "llama-3.2-90b-vision-preview",
+            "llama-3.2-11b-vision-preview",
+    };
+
     @Value("${groq.api-key:}")
     private String apiKey;
 
@@ -96,6 +104,59 @@ public class GroqService {
             }
         }
         log.error("All Groq models failed");
+        return null;
+    }
+
+    /**
+     * Analyzes a base64-encoded image with a prompt. Returns the model's
+     * description, or null if all vision models fail.
+     */
+    public String analyzeImage(String prompt, String base64Image, String mimeType) {
+        if (!isConfigured()) return null;
+        String dataUrl = "data:" + (mimeType == null ? "image/jpeg" : mimeType) + ";base64," + base64Image;
+
+        for (String model : VISION_MODELS) {
+            try {
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("model", model);
+                body.put("messages", List.of(Map.of(
+                        "role", "user",
+                        "content", List.of(
+                                Map.of("type", "text", "text", prompt),
+                                Map.of("type", "image_url", "image_url", Map.of("url", dataUrl))
+                        )
+                )));
+                body.put("temperature", 0.4);
+                body.put("max_tokens", 1024);
+
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create(GROQ_URL))
+                        .timeout(Duration.ofSeconds(45))
+                        .header("Content-Type", "application/json")
+                        .header("Authorization", "Bearer " + apiKey)
+                        .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
+                        .build();
+
+                HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                int code = res.statusCode();
+                if (code < 200 || code >= 300) {
+                    log.warn("Groq vision {} returned HTTP {} — trying next. Body: {}",
+                            model, code, snippet(res.body()));
+                    continue;
+                }
+                JsonNode root = MAPPER.readTree(res.body());
+                JsonNode content = root.path("choices").path(0).path("message").path("content");
+                if (content.isMissingNode() || content.isNull()) continue;
+                String reply = content.asText();
+                if (reply != null && !reply.isBlank()) {
+                    log.info("Groq vision {} succeeded ({} chars)", model, reply.length());
+                    return reply.trim();
+                }
+            } catch (Exception e) {
+                log.warn("Groq vision {} threw {}: {}", model, e.getClass().getSimpleName(), e.getMessage());
+            }
+        }
+        log.error("All Groq vision models failed");
         return null;
     }
 

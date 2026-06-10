@@ -99,6 +99,24 @@ public class GeminiService {
     }
 
     public String detectDisease(String base64Image, String cropName, String mimeType) {
+        String visionPrompt = "You are an expert agricultural scientist helping Indian farmers. " +
+                "Analyze this " + cropName + " crop image. " +
+                "Identify any disease, pest, or nutrient deficiency. Respond in this exact format:\n" +
+                "ISSUE: <name>\nSEVERITY: Mild|Moderate|Severe\nCAUSE: <cause>\n" +
+                "SYMPTOMS: <visible signs>\nTREATMENT: <step by step>\n" +
+                "PREVENTION: <future prevention>\nURGENCY: Act immediately|Within a week|Monitor closely";
+
+        // 1. Try Groq Vision first (free, fast, no billing)
+        if (groqService.isConfigured()) {
+            String groqReply = groqService.analyzeImage(visionPrompt, base64Image, mimeType);
+            if (groqReply != null && !groqReply.isBlank()) {
+                log.info("Disease detection: Groq Vision succeeded");
+                return groqReply;
+            }
+            log.warn("Groq Vision failed — falling through to Gemini Vision");
+        }
+
+        // 2. Fall back to Gemini Vision
         String prompt = "You are an expert agricultural scientist helping Indian farmers. " +
                 "Analyze this " + cropName + " crop image. " +
                 "Identify any disease, pest, or nutrient deficiency. " +
