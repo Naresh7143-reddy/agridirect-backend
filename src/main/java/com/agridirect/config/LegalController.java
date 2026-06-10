@@ -14,12 +14,12 @@ import java.util.Map;
 @RestController
 public class LegalController {
 
-    @GetMapping("/health")
+    @GetMapping({"/health", "/api/health"})
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of("status", "UP", "app", "AgriDirect"));
     }
 
-    @GetMapping(value = "/privacy", produces = MediaType.TEXT_HTML_VALUE)
+    @GetMapping(value = {"/privacy", "/api/privacy"}, produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> privacy() {
         String html = """
             <!DOCTYPE html>
@@ -85,7 +85,7 @@ public class LegalController {
         return ResponseEntity.ok(html);
     }
 
-    @GetMapping(value = "/terms", produces = MediaType.TEXT_HTML_VALUE)
+    @GetMapping(value = {"/terms", "/api/terms"}, produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> terms() {
         String html = """
             <!DOCTYPE html>

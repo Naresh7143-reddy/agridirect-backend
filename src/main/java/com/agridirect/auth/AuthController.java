@@ -66,6 +66,19 @@ public class AuthController {
 
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody Map<String, String> body) {
+        // Validate that the body contains the minimum required fields. Returning
+        // 200 for an empty body would be a security issue.
+        if (body == null) {
+            throw new ApiException("Request body is required", HttpStatus.BAD_REQUEST);
+        }
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        if (token == null || token.isBlank()) {
+            throw new ApiException("Reset token is required", HttpStatus.BAD_REQUEST);
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new ApiException("New password must be at least 6 characters", HttpStatus.BAD_REQUEST);
+        }
         return ResponseEntity.ok(ApiResponse.success("Password reset successful", null));
     }
 
@@ -85,21 +98,32 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<User>> getCurrentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String userId = auth.getName();
+        String userId = requireAuthenticatedUserId();
         User user = userService.findById(UUID.fromString(userId));
         return ResponseEntity.ok(ApiResponse.success(user));
     }
 
     @PutMapping("/fcm-token")
     public ResponseEntity<ApiResponse<Void>> updateFcmToken(@RequestBody Map<String, String> body) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String userId = auth.getName();
-        String fcmToken = body.get("fcmToken");
+        String userId = requireAuthenticatedUserId();
+        String fcmToken = body == null ? null : body.get("fcmToken");
         if (fcmToken == null || fcmToken.isBlank()) {
             throw new ApiException("fcmToken is required", HttpStatus.BAD_REQUEST);
         }
         userService.updateFcmToken(UUID.fromString(userId), fcmToken);
         return ResponseEntity.ok(ApiResponse.success("FCM token updated", null));
+    }
+
+    /** Returns the authenticated user's ID, or throws 401 if anonymous.
+     *  Centralises the null-check so endpoints can't accidentally NPE when
+     *  hit without a JWT (which is what the test report flagged for /me and
+     *  /fcm-token).
+     */
+    private String requireAuthenticatedUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new ApiException("Authentication required", HttpStatus.UNAUTHORIZED);
+        }
+        return auth.getName();
     }
 }

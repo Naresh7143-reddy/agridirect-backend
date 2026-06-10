@@ -30,8 +30,12 @@ public class SecurityConfig {
             .sessionManagement(session ->
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                    // Auth routes that require a valid JWT — listed BEFORE the wildcard permitAll
+                    .requestMatchers("/api/auth/me", "/api/auth/fcm-token").authenticated()
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/api/payment/webhook").permitAll()
+                    .requestMatchers("/api/health", "/health", "/api/privacy", "/privacy", "/api/terms", "/terms").permitAll()
+                    .requestMatchers("/api/diagnostic/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
