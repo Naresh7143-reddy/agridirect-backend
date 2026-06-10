@@ -30,6 +30,52 @@ public class GeminiDiagnosticController {
     @Value("${gemini.api-url:https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent}")
     private String apiUrl;
 
+    @Value("${groq.api-key:}")
+    private String groqKey;
+
+    @org.springframework.web.bind.annotation.GetMapping("/groq")
+    public Map<String, Object> testGroq() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("keyConfigured", groqKey != null && !groqKey.isBlank());
+        result.put("keyLength", groqKey == null ? 0 : groqKey.length());
+        result.put("keyPrefix", groqKey == null || groqKey.length() < 4 ? "" : groqKey.substring(0, 4) + "...");
+        if (groqKey == null || groqKey.isBlank()) {
+            result.put("status", "NOT_CONFIGURED");
+            result.put("reason", "GROQ_API_KEY env var not set. Get free key at https://console.groq.com/keys and add to Render.");
+            return result;
+        }
+        try {
+            String body = "{\"model\":\"llama-3.3-70b-versatile\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello in one short sentence.\"}],\"max_tokens\":50}";
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
+                    .timeout(Duration.ofSeconds(25))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + groqKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+            result.put("httpStatus", res.statusCode());
+            String respBody = res.body();
+            result.put("rawResponse", respBody == null ? null :
+                    (respBody.length() > 1500 ? respBody.substring(0, 1500) + "..." : respBody));
+            if (res.statusCode() >= 200 && res.statusCode() < 300) {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(respBody);
+                JsonNode content = root.path("choices").path(0).path("message").path("content");
+                result.put("status", content.isMissingNode() ? "FAIL" : "OK");
+                result.put("extractedReply", content.isMissingNode() ? null : content.asText());
+            } else {
+                result.put("status", "FAIL");
+                result.put("reason", "Groq HTTP " + res.statusCode() + " — check key validity & model availability");
+            }
+        } catch (Exception e) {
+            result.put("status", "FAIL");
+            result.put("reason", "Exception: " + e.getClass().getSimpleName() + " — " + e.getMessage());
+        }
+        return result;
+    }
+
     private static final String[] MODELS = {
             "gemini-2.0-flash", "gemini-2.0-flash-exp",
             "gemini-1.5-flash-latest", "gemini-1.5-flash-002",

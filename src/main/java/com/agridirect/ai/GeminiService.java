@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,8 @@ import java.util.Map;
  */
 @Service
 public class GeminiService {
+
+    @Autowired private GroqService groqService;
 
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -61,22 +64,30 @@ public class GeminiService {
 
     public String chat(String message, String language) {
         if (language == null || language.isBlank()) language = "English";
-        String prompt =
+
+        String systemPrompt =
                 "You are Krishi AI, an expert farming assistant for Indian farmers. " +
                 "Reply in " + language + " language. " +
                 "Help with crop diseases, market prices, government schemes, fertilizers, " +
                 "irrigation, weather, organic farming, and pest control. " +
                 "If the question is not farming-related, politely redirect to farming topics. " +
                 "Keep answers practical, simple, India-specific, and under 250 words. " +
-                "Use emojis sparingly for clarity (e.g. 🌾 💰 📊). " +
-                "Farmer's question: " + message;
+                "Use emojis sparingly for clarity (e.g. 🌾 💰 📊).";
 
-        String reply = tryGemini(prompt);
-        if (reply == null || reply.isBlank()) {
-            log.warn("Gemini returned no reply for chat — using knowledge-base fallback");
-            reply = FarmingKnowledge.findReply(message);
+        // 1. Try Groq (free, fast, no billing required) if configured
+        if (groqService.isConfigured()) {
+            String groqReply = groqService.chat(systemPrompt, message);
+            if (groqReply != null && !groqReply.isBlank()) return groqReply;
+            log.warn("Groq failed — falling through to Gemini");
         }
-        return reply;
+
+        // 2. Try Gemini (requires billing / valid AIza key)
+        String reply = tryGemini(systemPrompt + "\n\nFarmer's question: " + message);
+        if (reply != null && !reply.isBlank()) return reply;
+
+        // 3. Last resort: keyword-matched knowledge base
+        log.warn("Both Groq and Gemini failed for chat — using knowledge-base fallback");
+        return FarmingKnowledge.findReply(message);
     }
 
     public String detectDisease(String base64Image, String cropName, String mimeType) {
@@ -116,36 +127,39 @@ public class GeminiService {
     }
 
     public String getCropAdvice(String season, String location, String soilType, String waterAvailability) {
-        String prompt = "You are an expert agricultural advisor for Indian farmers. " +
-                "A farmer needs crop advice. " +
-                "Location: " + safe(location, "India") + ". Season: " + safe(season, "current") +
-                ". Soil type: " + safe(soilType, "loamy") +
-                ". Water: " + safe(waterAvailability, "moderate") + ". " +
+        String systemPrompt = "You are an expert agricultural advisor for Indian farmers. " +
                 "Suggest 3 best crops to grow right now. " +
-                "For each crop provide:\n" +
-                "CROP NAME, WHY SUITABLE, EXPECTED YIELD, MARKET PRICE, DEMAND, CARE TIPS, PROFIT ESTIMATE.\n" +
+                "For each crop provide: CROP NAME, WHY SUITABLE, EXPECTED YIELD, MARKET PRICE, DEMAND, CARE TIPS, PROFIT ESTIMATE.\n" +
                 "Be specific and practical for Indian farming.";
+        String userMsg = "Location: " + safe(location, "India") +
+                ". Season: " + safe(season, "current") +
+                ". Soil type: " + safe(soilType, "loamy") +
+                ". Water: " + safe(waterAvailability, "moderate");
 
-        String reply = tryGemini(prompt);
-        if (reply == null || reply.isBlank()) {
-            log.warn("Gemini crop advice failed — using fallback");
-            return FarmingKnowledge.cropAdviceFallback(season, location, soilType, waterAvailability);
+        if (groqService.isConfigured()) {
+            String r = groqService.chat(systemPrompt, userMsg);
+            if (r != null && !r.isBlank()) return r;
         }
-        return reply;
+        String reply = tryGemini(systemPrompt + "\n\n" + userMsg);
+        if (reply != null && !reply.isBlank()) return reply;
+        log.warn("All AI providers failed for crop advice — using fallback");
+        return FarmingKnowledge.cropAdviceFallback(season, location, soilType, waterAvailability);
     }
 
     public String getPriceForecast(String cropName, String location) {
-        String prompt = "You are an agricultural market analyst for India. " +
-                "Provide market analysis for " + safe(cropName, "crop") + " in " + safe(location, "India") + ".\n" +
+        String systemPrompt = "You are an agricultural market analyst for India. " +
                 "Include: CURRENT PRICE RANGE, PRICE TREND (Rising/Falling/Stable), " +
                 "NEXT 30 DAYS FORECAST, BEST TIME TO SELL, FACTORS, NEARBY MARKETS, TIPS.";
+        String userMsg = "Provide market analysis for " + safe(cropName, "crop") + " in " + safe(location, "India") + ".";
 
-        String reply = tryGemini(prompt);
-        if (reply == null || reply.isBlank()) {
-            log.warn("Gemini price forecast failed — using fallback");
-            return FarmingKnowledge.priceForecastFallback(cropName, location);
+        if (groqService.isConfigured()) {
+            String r = groqService.chat(systemPrompt, userMsg);
+            if (r != null && !r.isBlank()) return r;
         }
-        return reply;
+        String reply = tryGemini(systemPrompt + "\n\n" + userMsg);
+        if (reply != null && !reply.isBlank()) return reply;
+        log.warn("All AI providers failed for price forecast — using fallback");
+        return FarmingKnowledge.priceForecastFallback(cropName, location);
     }
 
     // ─── Gemini HTTP call & JSON parsing ──────────────────────────────────────
