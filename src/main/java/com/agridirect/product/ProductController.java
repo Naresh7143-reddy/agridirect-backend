@@ -72,8 +72,22 @@ public class ProductController {
 
     @PostMapping("/api/farmer/products/upload-image")
     @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<ApiResponse<String>> uploadImage(@RequestParam MultipartFile file) throws Exception {
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> uploadImage(@RequestParam MultipartFile file) throws Exception {
         String url = cloudinaryService.uploadProductImage(file);
-        return ResponseEntity.ok(ApiResponse.success("Image uploaded", url));
+        // Derive publicId from the secure_url so the client can request a
+        // delete later. The publicId is the path segment between the last
+        // version (vXXXX/) and the file extension.
+        String publicId = "";
+        try {
+            int upload = url.indexOf("/upload/");
+            if (upload >= 0) {
+                String rest = url.substring(upload + 8);
+                if (rest.startsWith("v")) rest = rest.substring(rest.indexOf('/') + 1);
+                int dot = rest.lastIndexOf('.');
+                publicId = dot > 0 ? rest.substring(0, dot) : rest;
+            }
+        } catch (Exception ignored) {}
+        return ResponseEntity.ok(ApiResponse.success("Image uploaded",
+                java.util.Map.of("imageUrl", url, "publicId", publicId)));
     }
 }
