@@ -111,7 +111,39 @@ public class OrderService {
                 .map(id -> orderRepository.findById(id))
                 .filter(java.util.Optional::isPresent)
                 .map(java.util.Optional::get)
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Orders that are packed by farmers but not yet assigned to any delivery
+     * agent. Every available delivery agent sees this list and can claim one.
+     * Swiggy/Zomato-style open marketplace.
+     */
+    public List<Order> getAvailableOrders() {
+        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
+                .filter(o -> "PACKED".equals(o.getStatus()) && o.getDeliveryAgentId() == null)
+                .collect(Collectors.toList());
+    }
+
+    /** Delivery agent self-claims an order from the available pool. */
+    @Transactional
+    public Order claimOrder(UUID agentId, UUID orderId) {
+        Order order = getOrderById(orderId);
+        if (order.getDeliveryAgentId() != null) {
+            throw new ApiException("Order already claimed by another agent", HttpStatus.CONFLICT);
+        }
+        if (!"PACKED".equals(order.getStatus())) {
+            throw new ApiException("Only packed orders can be claimed", HttpStatus.BAD_REQUEST);
+        }
+        order.setDeliveryAgentId(agentId);
+        order.setStatus("ASSIGNED");
+        Order saved = orderRepository.save(order);
+        userRepository.findById(order.getBuyerId()).ifPresent(buyer ->
+            notificationService.sendToUser(buyer.getFcmToken(),
+                    "Delivery partner assigned",
+                    "A delivery partner is picking up your order."));
+        return saved;
     }
 
     @Transactional

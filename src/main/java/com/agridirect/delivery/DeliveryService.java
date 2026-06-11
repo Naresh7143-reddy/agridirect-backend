@@ -24,6 +24,7 @@ public class DeliveryService {
     @Autowired private OrderRepository orderRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private NotificationService notificationService;
+    @Autowired private com.agridirect.order.OrderService orderService;
 
     public DeliveryProfile getProfile(UUID userId) {
         return deliveryRepository.findByUserId(userId)
@@ -38,6 +39,14 @@ public class DeliveryService {
 
     public List<Order> getAssignedOrders(UUID agentId) {
         return orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(agentId);
+    }
+
+    public List<Order> getAvailableOrders() {
+        return orderService.getAvailableOrders();
+    }
+
+    public Order claimOrder(UUID agentId, UUID orderId) {
+        return orderService.claimOrder(agentId, orderId);
     }
 
     public Order updateOrderStatus(UUID agentId, UUID orderId, String status) {

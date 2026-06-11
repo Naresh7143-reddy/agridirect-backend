@@ -44,6 +44,21 @@ public class DeliveryController {
         return ResponseEntity.ok(ApiResponse.success(deliveryService.getAssignedOrders(UUID.fromString(userId))));
     }
 
+    /** Available pool: packed orders that nobody has claimed yet. */
+    @GetMapping("/orders/available")
+    @PreAuthorize("hasRole('DELIVERY')")
+    public ResponseEntity<ApiResponse<List<Order>>> getAvailableOrders() {
+        return ResponseEntity.ok(ApiResponse.success(deliveryService.getAvailableOrders()));
+    }
+
+    /** Self-claim an available order. */
+    @PostMapping("/orders/{id}/claim")
+    @PreAuthorize("hasRole('DELIVERY')")
+    public ResponseEntity<ApiResponse<Order>> claimOrder(@PathVariable UUID id) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(ApiResponse.success("Order claimed", deliveryService.claimOrder(UUID.fromString(userId), id)));
+    }
+
     @PutMapping("/orders/{orderId}/status")
     @PreAuthorize("hasRole('DELIVERY')")
     public ResponseEntity<ApiResponse<Order>> updateOrderStatus(
