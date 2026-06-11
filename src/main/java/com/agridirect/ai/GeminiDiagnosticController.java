@@ -33,6 +33,28 @@ public class GeminiDiagnosticController {
     @Value("${groq.api-key:}")
     private String groqKey;
 
+    @Value("${cloudinary.cloud-name:}") private String cloudName;
+    @Value("${cloudinary.api-key:}")    private String cloudApiKey;
+    @Value("${cloudinary.api-secret:}") private String cloudSecret;
+
+    /** Public sanity check that Cloudinary credentials are set on Render. */
+    @org.springframework.web.bind.annotation.GetMapping("/cloudinary")
+    public Map<String, Object> testCloudinary() {
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("cloudName", cloudName == null || cloudName.isBlank() ? "MISSING" : cloudName);
+        r.put("apiKeyConfigured", cloudApiKey != null && !cloudApiKey.isBlank());
+        r.put("apiKeyLength", cloudApiKey == null ? 0 : cloudApiKey.length());
+        r.put("apiSecretConfigured", cloudSecret != null && !cloudSecret.isBlank());
+        r.put("apiSecretLength", cloudSecret == null ? 0 : cloudSecret.length());
+        boolean ok = !(cloudName == null || cloudName.isBlank())
+                  && cloudApiKey != null && !cloudApiKey.isBlank()
+                  && cloudSecret != null && !cloudSecret.isBlank();
+        r.put("status", ok ? "OK" : "FAIL");
+        if (!ok) r.put("reason", "Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET on Render.");
+        else r.put("note", "Try uploading an image at https://res.cloudinary.com/" + cloudName + "/image/upload/ — if you get a 401, secret is wrong.");
+        return r;
+    }
+
     @org.springframework.web.bind.annotation.GetMapping("/groq")
     public Map<String, Object> testGroq() {
         Map<String, Object> result = new LinkedHashMap<>();
