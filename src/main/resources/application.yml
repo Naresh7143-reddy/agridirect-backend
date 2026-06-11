@@ -33,8 +33,12 @@ razorpay:
   webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
 
 gemini:
-  api-key: ${GEMINI_API_KEY}
+  api-key: ${GEMINI_API_KEY:}
   api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+
+# Groq AI provider — primary LLM. Set GROQ_API_KEY env var on Render.
+groq:
+  api-key: ${GROQ_API_KEY:}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME}
