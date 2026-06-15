@@ -63,6 +63,14 @@ public class GeminiService {
     // ─── Public entry points ──────────────────────────────────────────────────
 
     public String chat(String message, String language) {
+        return chat(message, language, null);
+    }
+
+    /**
+     * @param history prior conversation turns ({@code role}: "user"|"assistant", {@code content}: text),
+     *                 oldest first, for multi-turn memory. May be null/empty.
+     */
+    public String chat(String message, String language, java.util.List<Map<String, String>> history) {
         if (language == null || language.isBlank()) language = "English";
 
         String systemPrompt =
@@ -72,17 +80,28 @@ public class GeminiService {
                 "irrigation, weather, organic farming, and pest control. " +
                 "If the question is not farming-related, politely redirect to farming topics. " +
                 "Keep answers practical, simple, India-specific, and under 250 words. " +
-                "Use emojis sparingly for clarity (e.g. 🌾 💰 📊).";
+                "Use emojis sparingly for clarity (e.g. 🌾 💰 📊). " +
+                "Use the prior conversation for context (e.g. remember the crop, location, or " +
+                "problem the farmer already mentioned) and avoid repeating questions already answered.";
 
         // 1. Try Groq (Llama 3.3 70B — free, fast)
         if (groqService.isConfigured()) {
-            String groqReply = groqService.chat(systemPrompt, message);
+            String groqReply = groqService.chat(systemPrompt, message, history);
             if (groqReply != null && !groqReply.isBlank()) return groqReply;
             log.warn("Groq failed — falling through to Gemini");
         }
 
         // 2. Try Gemini (requires billing / valid AIza key)
-        String reply = tryGemini(systemPrompt + "\n\nFarmer's question: " + message);
+        StringBuilder prompt = new StringBuilder(systemPrompt);
+        if (history != null && !history.isEmpty()) {
+            prompt.append("\n\nConversation so far:");
+            for (Map<String, String> turn : history) {
+                prompt.append("\n").append("user".equals(turn.get("role")) ? "Farmer" : "Krishi AI")
+                        .append(": ").append(turn.get("content"));
+            }
+        }
+        prompt.append("\n\nFarmer's question: ").append(message);
+        String reply = tryGemini(prompt.toString());
         if (reply != null && !reply.isBlank()) return reply;
 
         // 3. Last resort: keyword-matched knowledge base

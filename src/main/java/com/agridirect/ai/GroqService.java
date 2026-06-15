@@ -60,16 +60,26 @@ public class GroqService {
      * FarmingKnowledge).
      */
     public String chat(String systemPrompt, String userMessage) {
+        return chat(systemPrompt, userMessage, null);
+    }
+
+    /**
+     * Chat with optional prior conversation turns for memory/context.
+     * @param history list of {role: "user"|"assistant", content: "..."} in chronological order
+     */
+    public String chat(String systemPrompt, String userMessage, List<Map<String, String>> history) {
         if (!isConfigured()) return null;
 
         for (String model : MODELS) {
             try {
+                List<Map<String, String>> messages = new java.util.ArrayList<>();
+                messages.add(Map.of("role", "system", "content", systemPrompt));
+                if (history != null) messages.addAll(history);
+                messages.add(Map.of("role", "user", "content", userMessage));
+
                 Map<String, Object> body = new LinkedHashMap<>();
                 body.put("model", model);
-                body.put("messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", userMessage)
-                ));
+                body.put("messages", messages);
                 body.put("temperature", 0.7);
                 body.put("max_tokens", 800);
 

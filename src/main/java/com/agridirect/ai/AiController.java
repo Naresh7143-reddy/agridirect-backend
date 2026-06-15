@@ -68,10 +68,30 @@ public class AiController {
 
     @PostMapping("/chat")
     @PreAuthorize("hasAnyRole('FARMER','BUYER')")
+    @SuppressWarnings("unchecked")
     public ResponseEntity<ApiResponse<ChatResponse>> chat(@RequestBody Map<String, Object> body) {
         String message = body.get("message") == null ? null : body.get("message").toString();
         String language = body.get("language") == null ? "English" : body.get("language").toString();
-        String reply = geminiService.chat(message, language);
+
+        java.util.List<Map<String, String>> history = null;
+        Object rawHistory = body.get("history");
+        if (rawHistory instanceof java.util.List<?> list) {
+            history = new java.util.ArrayList<>();
+            // Cap at the last 10 turns to keep prompts small
+            int start = Math.max(0, list.size() - 10);
+            for (Object o : list.subList(start, list.size())) {
+                if (o instanceof Map<?, ?> m) {
+                    Object role = m.get("role");
+                    Object content = m.get("content");
+                    if (role != null && content != null) {
+                        String r = "user".equals(role) ? "user" : "assistant";
+                        history.add(Map.of("role", r, "content", content.toString()));
+                    }
+                }
+            }
+        }
+
+        String reply = geminiService.chat(message, language, history);
         return ResponseEntity.ok(ApiResponse.success(new ChatResponse(reply, language)));
     }
 }
