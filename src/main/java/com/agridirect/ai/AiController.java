@@ -49,7 +49,7 @@ public class AiController {
     }
 
     @PostMapping("/advice")
-    @PreAuthorize("hasRole('FARMER')")
+    @PreAuthorize("hasAnyRole('FARMER','BUYER')")
     public ResponseEntity<ApiResponse<String>> postCropAdvice(@RequestBody Map<String, String> body) {
         return ResponseEntity.ok(ApiResponse.success(
                 geminiService.getCropAdvice(
@@ -60,14 +60,14 @@ public class AiController {
     }
 
     @PostMapping("/price-forecast")
-    @PreAuthorize("hasRole('FARMER')")
+    @PreAuthorize("hasAnyRole('FARMER','BUYER')")
     public ResponseEntity<ApiResponse<String>> postPriceForecast(@RequestBody Map<String, String> body) {
         return ResponseEntity.ok(ApiResponse.success(
                 geminiService.getPriceForecast(body.get("cropName"), body.get("location"))));
     }
 
     @PostMapping("/chat")
-    @PreAuthorize("hasRole('FARMER')")
+    @PreAuthorize("hasAnyRole('FARMER','BUYER')")
     public ResponseEntity<ApiResponse<ChatResponse>> chat(@RequestBody Map<String, Object> body) {
         String message = body.get("message") == null ? null : body.get("message").toString();
         String language = body.get("language") == null ? "English" : body.get("language").toString();
