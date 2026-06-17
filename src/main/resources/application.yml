@@ -22,6 +22,15 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
 
 jwt:
   secret: ${JWT_SECRET}
@@ -36,7 +45,6 @@ gemini:
   api-key: ${GEMINI_API_KEY:}
   api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
 
-# Groq AI provider — primary LLM. Set GROQ_API_KEY env var on Render.
 groq:
   api-key: ${GROQ_API_KEY:}
 
@@ -47,14 +55,3 @@ cloudinary:
 
 server:
   port: ${PORT:8001}
-
-spring:
-  servlet:
-    multipart:
-      max-file-size: 5MB
-      max-request-size: 5MB
-  mvc:
-    throw-exception-if-no-handler-found: true
-  web:
-    resources:
-      add-mappings: false
