@@ -25,8 +25,19 @@ public class PaymentController {
     @PostMapping("/create-order")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createOrder(@RequestBody Map<String, Object> body) {
+        String buyerId = SecurityContextHolder.getContext().getAuthentication().getName();
         UUID orderId = UUID.fromString((String) body.get("orderId"));
-        Double amount = ((Number) body.get("amount")).doubleValue();
+        // Ownership check: verify the order belongs to this buyer
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new com.agridirect.common.exception.ApiException("Order not found", org.springframework.http.HttpStatus.NOT_FOUND));
+        if (!order.getBuyerId().toString().equals(buyerId)) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Not your order"));
+        }
+        // Use server-computed total — never trust the client-supplied amount
+        Double amount = order.getTotalAmount();
+        if (amount == null || amount <= 0) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid order amount"));
+        }
         return ResponseEntity.ok(ApiResponse.success(paymentService.createRazorpayOrder(orderId, amount)));
     }
 
@@ -54,30 +65,59 @@ public class PaymentController {
     @GetMapping("/{paymentId}")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<Payment>> getPaymentById(@PathVariable UUID paymentId) {
-        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentById(paymentId)));
+        String buyerId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Payment payment = paymentService.getPaymentById(paymentId);
+        // IDOR guard: verify the payment's order belongs to the requesting buyer
+        Order order = orderRepository.findById(payment.getOrderId())
+                .orElseThrow(() -> new com.agridirect.common.exception.ApiException("Order not found", org.springframework.http.HttpStatus.NOT_FOUND));
+        if (!order.getBuyerId().toString().equals(buyerId)) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(payment));
     }
 
     @GetMapping("/order/{orderId}")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<Payment>> getPaymentByOrder(@PathVariable UUID orderId) {
+        String buyerId = SecurityContextHolder.getContext().getAuthentication().getName();
+        // IDOR guard: verify the order belongs to the requesting buyer
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new com.agridirect.common.exception.ApiException("Order not found", org.springframework.http.HttpStatus.NOT_FOUND));
+        if (!order.getBuyerId().toString().equals(buyerId)) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied"));
+        }
         return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentByOrderId(orderId)));
     }
 
     @PostMapping("/{paymentId}/refund")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> refund(@PathVariable UUID paymentId, @RequestBody(required = false) Map<String, Object> body) {
-        Double amount = null;
-        String reason = null;
-        if (body != null) {
-            if (body.get("amount") != null) amount = ((Number) body.get("amount")).doubleValue();
-            if (body.get("reason") != null) reason = (String) body.get("reason");
+        String buyerId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Payment payment = paymentService.getPaymentById(paymentId);
+        // IDOR guard
+        Order order = orderRepository.findById(payment.getOrderId())
+                .orElseThrow(() -> new com.agridirect.common.exception.ApiException("Order not found", org.springframework.http.HttpStatus.NOT_FOUND));
+        if (!order.getBuyerId().toString().equals(buyerId)) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied"));
         }
-        Payment payment = paymentService.initiateRefund(paymentId, amount, reason);
+        // Cap refund at the original paid amount — never trust a client-supplied amount
+        Double maxRefundable = payment.getAmount();
+        Double amount = maxRefundable; // default: full refund
+        if (body != null && body.get("amount") != null) {
+            double requested = ((Number) body.get("amount")).doubleValue();
+            if (requested <= 0 || requested > maxRefundable) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(
+                        "Refund amount must be between 0 and " + maxRefundable));
+            }
+            amount = requested;
+        }
+        String reason = (body != null && body.get("reason") != null) ? (String) body.get("reason") : null;
+        Payment refunded = paymentService.initiateRefund(paymentId, amount, reason);
         Map<String, Object> result = Map.of(
-                "refundId", payment.getRefundId(),
-                "status", payment.getRefundStatus(),
-                "amount", payment.getRefundAmount(),
-                "currency", payment.getCurrency()
+                "refundId", refunded.getRefundId(),
+                "status", refunded.getRefundStatus(),
+                "amount", refunded.getRefundAmount(),
+                "currency", refunded.getCurrency()
         );
         return ResponseEntity.ok(ApiResponse.success("Refund initiated", result));
     }

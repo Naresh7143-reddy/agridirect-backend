@@ -31,9 +31,16 @@ public class OrderService {
 
     @Transactional
     public Order placeOrder(UUID buyerId, OrderRequest req) {
-        // 1. Validate all items
+        if (req.getItems() == null || req.getItems().isEmpty()) {
+            throw new ApiException("Order must contain at least one item", HttpStatus.BAD_REQUEST);
+        }
+        // 1. Validate all items with row-level locks to prevent overselling
         for (OrderItemRequest item : req.getItems()) {
-            Product product = productRepository.findById(item.getProductId())
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new ApiException("Quantity must be greater than zero", HttpStatus.BAD_REQUEST);
+            }
+            // Pessimistic lock: SELECT ... FOR UPDATE prevents concurrent stock deductions
+            Product product = productRepository.findByIdForUpdate(item.getProductId())
                     .orElseThrow(() -> new ApiException(
                             "Product not found: " + item.getProductId(), HttpStatus.BAD_REQUEST));
             if (!product.isAvailable()) {
@@ -129,7 +136,9 @@ public class OrderService {
     /** Delivery agent self-claims an order from the available pool. */
     @Transactional
     public Order claimOrder(UUID agentId, UUID orderId) {
-        Order order = getOrderById(orderId);
+        // Pessimistic lock prevents two agents from claiming the same order simultaneously
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new ApiException("Order not found", HttpStatus.NOT_FOUND));
         if (order.getDeliveryAgentId() != null) {
             throw new ApiException("Order already claimed by another agent", HttpStatus.CONFLICT);
         }

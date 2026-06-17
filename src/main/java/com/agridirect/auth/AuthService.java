@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class AuthService {
@@ -48,16 +49,25 @@ public class AuthService {
                 throw new ApiException("Phone already registered. Please login.", HttpStatus.CONFLICT);
             }
 
+            // Block self-assignment of privileged roles. ADMIN must be seeded via DB.
+            String role = req.getRole() == null ? "" : req.getRole().trim().toUpperCase();
+            if (!Set.of("FARMER", "BUYER", "DELIVERY").contains(role)) {
+                throw new ApiException("Invalid role. Allowed: FARMER, BUYER, DELIVERY", HttpStatus.BAD_REQUEST);
+            }
+            if (req.getName() == null || req.getName().trim().isEmpty()) {
+                throw new ApiException("Name is required", HttpStatus.BAD_REQUEST);
+            }
+
             User user = User.builder()
                     .phone(phone)
-                    .name(req.getName())
-                    .role(req.getRole())
+                    .name(req.getName().trim())
+                    .role(role)
                     .email(req.getEmail())
                     .isActive(true)
                     .build();
             user = userRepository.save(user);
 
-            switch (req.getRole().toUpperCase()) {
+            switch (role) {
                 case "FARMER" -> farmerRepository.save(FarmerProfile.builder()
                         .userId(user.getId())
                         .farmName(req.getFarmName())

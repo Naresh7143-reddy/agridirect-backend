@@ -138,7 +138,10 @@ public class PaymentService {
     public void handleWebhook(String payload, String signature) {
         try {
             boolean valid = Utils.verifyWebhookSignature(payload, signature, webhookSecret);
-            if (!valid) return;
+            if (!valid) {
+                throw new com.agridirect.common.exception.ApiException(
+                        "Invalid webhook signature", org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
 
             JSONObject event = new JSONObject(payload);
             String eventType = event.getString("event");

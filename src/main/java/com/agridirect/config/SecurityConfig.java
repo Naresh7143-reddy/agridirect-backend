@@ -43,7 +43,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/farmer/**").authenticated()
                     .requestMatchers("/api/buyer/**").authenticated()
                     .requestMatchers("/api/delivery/**").authenticated()
-                    .requestMatchers("/api/admin/**").authenticated()
+                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     .requestMatchers("/api/payment/**").authenticated()
                     .anyRequest().permitAll()
             )
