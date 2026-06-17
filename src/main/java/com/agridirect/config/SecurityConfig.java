@@ -62,9 +62,9 @@ public class SecurityConfig {
                     .requestMatchers("/api/payment/**").authenticated()
                     .anyRequest().permitAll()
             )
-            // Rate limiter runs before JWT filter so it catches unauthenticated flood too
+            // Explicit order: RateLimitFilter → JwtAuthFilter → UsernamePasswordAuthenticationFilter
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(jwtAuthFilter, RateLimitFilter.class);
 
         return http.build();
     }

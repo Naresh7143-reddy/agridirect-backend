@@ -13,4 +13,6 @@ public interface FarmerRepository extends JpaRepository<FarmerProfile, UUID> {
     Optional<FarmerProfile> findByUserId(UUID userId);
 
     List<FarmerProfile> findByVerifiedFalse();
+
+    List<FarmerProfile> findAllByUserIdIn(java.util.Set<UUID> userIds);
 }

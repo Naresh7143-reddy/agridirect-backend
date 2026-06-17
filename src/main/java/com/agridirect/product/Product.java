@@ -9,7 +9,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "products")
+@Table(name = "products", indexes = {
+    @Index(name = "idx_products_is_available", columnList = "is_available"),
+    @Index(name = "idx_products_farmer_id",    columnList = "farmer_id"),
+    @Index(name = "idx_products_category_id",  columnList = "category_id"),
+    @Index(name = "idx_products_name",         columnList = "name")
+})
 public class Product {
 
     @Id
