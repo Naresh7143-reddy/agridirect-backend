@@ -73,7 +73,9 @@ public class ProductService {
     }
 
     public List<ProductResponse> searchProducts(String query) {
-        return productRepository.findByNameContainingIgnoreCaseAndIsAvailableTrue(query).stream()
+        // Strip null bytes and control characters — prevents PostgreSQL UTF8 encoding errors
+        String safe = query == null ? "" : query.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "").trim();
+        return productRepository.findByNameContainingIgnoreCaseAndIsAvailableTrue(safe).stream()
                 .map(this::buildResponse).collect(Collectors.toList());
     }
 
