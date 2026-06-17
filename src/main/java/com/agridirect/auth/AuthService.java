@@ -42,6 +42,9 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest req) {
         try {
+            if (req.getIdToken() == null || req.getIdToken().isBlank()) {
+                throw new ApiException("Firebase ID token is required", HttpStatus.BAD_REQUEST);
+            }
             FirebaseToken decoded = FirebaseAuth.getInstance().verifyIdToken(req.getIdToken());
             String phone = decoded.getClaims().get("phone_number").toString();
 
@@ -102,6 +105,9 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest req) {
         try {
+            if (req.getIdToken() == null || req.getIdToken().isBlank()) {
+                throw new ApiException("Firebase ID token is required", HttpStatus.BAD_REQUEST);
+            }
             FirebaseToken decoded = FirebaseAuth.getInstance().verifyIdToken(req.getIdToken());
             String phone = decoded.getClaims().get("phone_number").toString();
 
