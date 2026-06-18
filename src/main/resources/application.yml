@@ -45,6 +45,9 @@ gemini:
   api-key: ${GEMINI_API_KEY:}
   api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
 
+xai:
+  api-key: ${XAI_API_KEY:}
+
 groq:
   api-key: ${GROQ_API_KEY:}
 

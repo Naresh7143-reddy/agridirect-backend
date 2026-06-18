@@ -91,7 +91,16 @@ public class AiController {
             }
         }
 
-        String reply = geminiService.chat(message, language, history);
+        // If the frontend attached an image (base64), analyse it with vision first
+        String imageBase64 = body.get("imageBase64") == null ? null : body.get("imageBase64").toString();
+        String reply;
+        if (imageBase64 != null && !imageBase64.isBlank()) {
+            // Build a combined prompt: user message + vision analysis context
+            String cropHint = message != null && !message.isBlank() ? message : "my crop";
+            reply = geminiService.detectDisease(imageBase64, cropHint, "image/jpeg");
+        } else {
+            reply = geminiService.chat(message, language, history);
+        }
         return ResponseEntity.ok(ApiResponse.success(new ChatResponse(reply, language)));
     }
 }

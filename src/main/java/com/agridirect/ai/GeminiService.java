@@ -27,7 +27,8 @@ import java.util.Map;
 @Service
 public class GeminiService {
 
-    @Autowired private GroqService groqService;
+    @Autowired private GrokService grokService;   // primary (xAI Grok)
+    @Autowired private GroqService groqService;   // fallback #1
 
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -84,7 +85,14 @@ public class GeminiService {
                 "Use the prior conversation for context (e.g. remember the crop, location, or " +
                 "problem the farmer already mentioned) and avoid repeating questions already answered.";
 
-        // 1. Try Groq (Llama 3.3 70B — free, fast)
+        // 1. Try Grok (xAI — primary)
+        if (grokService.isConfigured()) {
+            String grokReply = grokService.chat(systemPrompt, message, history);
+            if (grokReply != null && !grokReply.isBlank()) return grokReply;
+            log.warn("Grok failed — falling through to Groq");
+        }
+
+        // 2. Try Groq (Llama 3.3 70B — fallback #1)
         if (groqService.isConfigured()) {
             String groqReply = groqService.chat(systemPrompt, message, history);
             if (groqReply != null && !groqReply.isBlank()) return groqReply;
@@ -104,8 +112,8 @@ public class GeminiService {
         String reply = tryGemini(prompt.toString());
         if (reply != null && !reply.isBlank()) return reply;
 
-        // 3. Last resort: keyword-matched knowledge base
-        log.warn("Both Groq and Gemini failed for chat — using knowledge-base fallback");
+        // 4. Last resort: keyword-matched knowledge base
+        log.warn("All AI providers failed for chat — using knowledge-base fallback");
         return FarmingKnowledge.findReply(message);
     }
 
@@ -117,7 +125,17 @@ public class GeminiService {
                 "SYMPTOMS: <visible signs>\nTREATMENT: <step by step>\n" +
                 "PREVENTION: <future prevention>\nURGENCY: Act immediately|Within a week|Monitor closely";
 
-        // 1. Try Groq Vision first (free, fast, no billing)
+        // 1. Try Grok Vision first (primary)
+        if (grokService.isConfigured()) {
+            String grokReply = grokService.analyzeImage(visionPrompt, base64Image, mimeType);
+            if (grokReply != null && !grokReply.isBlank()) {
+                log.info("Disease detection: Grok Vision succeeded");
+                return grokReply;
+            }
+            log.warn("Grok Vision failed — falling through to Groq Vision");
+        }
+
+        // 2. Try Groq Vision (fallback #1)
         if (groqService.isConfigured()) {
             String groqReply = groqService.analyzeImage(visionPrompt, base64Image, mimeType);
             if (groqReply != null && !groqReply.isBlank()) {
@@ -173,6 +191,10 @@ public class GeminiService {
                 ". Soil type: " + safe(soilType, "loamy") +
                 ". Water: " + safe(waterAvailability, "moderate");
 
+        if (grokService.isConfigured()) {
+            String r = grokService.chat(systemPrompt, userMsg, null);
+            if (r != null && !r.isBlank()) return r;
+        }
         if (groqService.isConfigured()) {
             String r = groqService.chat(systemPrompt, userMsg);
             if (r != null && !r.isBlank()) return r;
@@ -189,6 +211,10 @@ public class GeminiService {
                 "NEXT 30 DAYS FORECAST, BEST TIME TO SELL, FACTORS, NEARBY MARKETS, TIPS.";
         String userMsg = "Provide market analysis for " + safe(cropName, "crop") + " in " + safe(location, "India") + ".";
 
+        if (grokService.isConfigured()) {
+            String r = grokService.chat(systemPrompt, userMsg, null);
+            if (r != null && !r.isBlank()) return r;
+        }
         if (groqService.isConfigured()) {
             String r = groqService.chat(systemPrompt, userMsg);
             if (r != null && !r.isBlank()) return r;
