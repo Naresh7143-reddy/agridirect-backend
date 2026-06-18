@@ -25,6 +25,8 @@ public final class DiseaseResultParser {
         result.setAffectedCrops(cropName != null ? List.of(cropName) : List.of());
         result.setImageAnalyzed("");
 
+        if (rawText == null) rawText = "";
+
         String issue = extract(rawText, "ISSUE");
         String severityRaw = extract(rawText, "SEVERITY");
         String cause = extract(rawText, "CAUSE");

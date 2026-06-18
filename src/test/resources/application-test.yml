@@ -1,0 +1,42 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+jwt:
+  secret: test_jwt_secret_key_must_be_at_least_32_characters_long
+  expiration: 86400000
+
+razorpay:
+  key-id: test_key
+  key-secret: test_secret
+  webhook-secret: test_webhook
+
+gemini:
+  api-key: ""
+  api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+
+groq:
+  api-key: ""
+
+xai:
+  api-key: ""
+
+cloudinary:
+  cloud-name: test
+  api-key: "123"
+  api-secret: test_secret
+
+server:
+  port: 0
