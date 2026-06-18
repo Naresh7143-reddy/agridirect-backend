@@ -1,6 +1,8 @@
 package com.agridirect.delivery;
 
 import com.agridirect.common.dto.ApiResponse;
+import com.agridirect.order.OrderService;
+import com.agridirect.order.dto.DeliveryOrderResponse;
 import com.agridirect.storage.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ public class DeliveryController {
 
     @Autowired private DeliveryService deliveryService;
     @Autowired private CloudinaryService cloudinaryService;
+    @Autowired private OrderService orderService;
 
     @GetMapping("/profile")
     @PreAuthorize("hasRole('DELIVERY')")
@@ -39,48 +42,52 @@ public class DeliveryController {
 
     @GetMapping("/orders")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<List<Order>>> getOrders() {
+    public ResponseEntity<ApiResponse<List<DeliveryOrderResponse>>> getOrders() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(ApiResponse.success(deliveryService.getAssignedOrders(UUID.fromString(userId))));
+        return ResponseEntity.ok(ApiResponse.success(orderService.getAssignedOrdersAsDto(UUID.fromString(userId))));
     }
 
     /** Available pool: packed orders that nobody has claimed yet. */
     @GetMapping("/orders/available")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<List<Order>>> getAvailableOrders() {
-        return ResponseEntity.ok(ApiResponse.success(deliveryService.getAvailableOrders()));
+    public ResponseEntity<ApiResponse<List<DeliveryOrderResponse>>> getAvailableOrders() {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getAvailableOrdersAsDto()));
     }
 
     /** Self-claim an available order. */
     @PostMapping("/orders/{id}/claim")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<Order>> claimOrder(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<DeliveryOrderResponse>> claimOrder(@PathVariable UUID id) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(ApiResponse.success("Order claimed", deliveryService.claimOrder(UUID.fromString(userId), id)));
+        Order claimed = deliveryService.claimOrder(UUID.fromString(userId), id);
+        return ResponseEntity.ok(ApiResponse.success("Order claimed", orderService.buildDeliveryOrderResponse(claimed)));
     }
 
     @PutMapping("/orders/{orderId}/status")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<Order>> updateOrderStatus(
+    public ResponseEntity<ApiResponse<DeliveryOrderResponse>> updateOrderStatus(
             @PathVariable UUID orderId,
             @RequestBody Map<String, String> body) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         String status = body.get("status");
-        return ResponseEntity.ok(ApiResponse.success(deliveryService.updateOrderStatus(UUID.fromString(userId), orderId, status)));
+        Order updated = deliveryService.updateOrderStatus(UUID.fromString(userId), orderId, status);
+        return ResponseEntity.ok(ApiResponse.success(orderService.buildDeliveryOrderResponse(updated)));
     }
 
     @GetMapping("/orders/{id}")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<Order>> getOrderById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<DeliveryOrderResponse>> getOrderById(@PathVariable UUID id) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(ApiResponse.success(deliveryService.getOrderById(UUID.fromString(userId), id)));
+        Order order = deliveryService.getOrderById(UUID.fromString(userId), id);
+        return ResponseEntity.ok(ApiResponse.success(orderService.buildDeliveryOrderResponse(order)));
     }
 
     @PostMapping("/orders/{id}/confirm")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<Order>> confirmOrder(@PathVariable UUID id, @RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<ApiResponse<DeliveryOrderResponse>> confirmOrder(@PathVariable UUID id, @RequestBody(required = false) Map<String, String> body) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(ApiResponse.success("Delivery confirmed", deliveryService.confirmOrder(UUID.fromString(userId), id)));
+        Order confirmed = deliveryService.confirmOrder(UUID.fromString(userId), id);
+        return ResponseEntity.ok(ApiResponse.success("Delivery confirmed", orderService.buildDeliveryOrderResponse(confirmed)));
     }
 
     @PutMapping("/location")
@@ -89,7 +96,7 @@ public class DeliveryController {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         Double lat = body.get("lat") != null ? ((Number) body.get("lat")).doubleValue() : null;
         Double lng = body.get("lng") != null ? ((Number) body.get("lng")).doubleValue() : null;
-        deliveryService.updateLocation(UUID.fromString(userId), lat, lng);
+        deliveryService.updateLocationAndBroadcast(UUID.fromString(userId), lat, lng);
         return ResponseEntity.ok(ApiResponse.success("Location updated", null));
     }
 

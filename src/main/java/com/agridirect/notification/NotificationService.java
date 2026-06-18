@@ -3,6 +3,7 @@ package com.agridirect.notification;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -12,6 +13,21 @@ import java.util.logging.Logger;
 public class NotificationService {
 
     private static final Logger log = Logger.getLogger(NotificationService.class.getName());
+
+    @Autowired(required = false)
+    private UserNotificationRepository notificationRepository;
+
+    /** Send FCM push and persist to inbox. userId may be null (skips persistence). */
+    public void sendToUserWithId(UUID userId, String fcmToken, String title, String body, String type, String referenceId) {
+        sendToUser(fcmToken, title, body);
+        if (userId != null && notificationRepository != null) {
+            try {
+                notificationRepository.save(new UserNotification(userId, title, body, type, referenceId));
+            } catch (Exception e) {
+                log.warning("Could not persist notification: " + e.getMessage());
+            }
+        }
+    }
 
     public void sendToUser(String fcmToken, String title, String body) {
         if (fcmToken == null || fcmToken.isBlank()) {

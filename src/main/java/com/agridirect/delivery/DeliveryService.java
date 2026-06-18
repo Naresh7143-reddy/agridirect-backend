@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service
 public class DeliveryService {
 
-    private static final Set<String> ALLOWED_STATUSES = Set.of("PICKED_UP", "ON_THE_WAY", "DELIVERED");
+    private static final Set<String> ALLOWED_STATUSES = Set.of("PICKED_UP", "ON_THE_WAY", "IN_TRANSIT", "DELIVERED");
 
     @Autowired private DeliveryRepository deliveryRepository;
     @Autowired private OrderRepository orderRepository;
@@ -50,9 +50,12 @@ public class DeliveryService {
     }
 
     public Order updateOrderStatus(UUID agentId, UUID orderId, String status) {
-        if (!ALLOWED_STATUSES.contains(status)) {
-            throw new ApiException("Invalid status. Allowed: PICKED_UP, ON_THE_WAY, DELIVERED", HttpStatus.BAD_REQUEST);
+        // Normalize IN_TRANSIT → ON_THE_WAY for storage
+        String normalizedStatus = "IN_TRANSIT".equalsIgnoreCase(status) ? "IN_TRANSIT" : status.toUpperCase();
+        if (!ALLOWED_STATUSES.contains(normalizedStatus)) {
+            throw new ApiException("Invalid status. Allowed: PICKED_UP, IN_TRANSIT, DELIVERED", HttpStatus.BAD_REQUEST);
         }
+        status = normalizedStatus;
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ApiException("Order not found", HttpStatus.NOT_FOUND));
         if (!agentId.equals(order.getDeliveryAgentId())) {
@@ -60,12 +63,15 @@ public class DeliveryService {
         }
         order.setStatus(status);
         Order saved = orderRepository.save(order);
+        // Broadcast SSE to buyer
+        com.agridirect.order.OrderTrackingController.broadcastStatus(orderId, status);
+        final String finalStatus = status;
         userRepository.findById(order.getBuyerId()).ifPresent(buyer -> {
             String token = buyer.getFcmToken();
-            switch (status) {
+            switch (finalStatus) {
                 case "PICKED_UP"  -> notificationService.sendOrderPickedUp(token);
                 case "DELIVERED"  -> notificationService.sendOrderDelivered(token);
-                default           -> notificationService.sendToUser(token, "Order Update", "Your order status is now: " + status);
+                default           -> notificationService.sendToUser(token, "Order Update", "Your order status is now: " + finalStatus);
             }
         });
         return saved;
@@ -100,6 +106,18 @@ public class DeliveryService {
         profile.setCurrentLat(lat);
         profile.setCurrentLng(lng);
         return deliveryRepository.save(profile);
+    }
+
+    public DeliveryProfile updateLocationAndBroadcast(UUID userId, Double lat, Double lng) {
+        DeliveryProfile saved = updateLocation(userId, lat, lng);
+        // Broadcast to any buyer watching via SSE
+        orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .filter(o -> "PICKED_UP".equals(o.getStatus()) || "IN_TRANSIT".equals(o.getStatus()) || "ON_THE_WAY".equals(o.getStatus()))
+                .findFirst()
+                .ifPresent(active -> com.agridirect.order.OrderTrackingController
+                        .broadcastLocation(active.getId(), lat, lng, active.getStatus()));
+        return saved;
     }
 
     public DeliveryProfile updateProfile(UUID userId, java.util.Map<String, Object> updates) {

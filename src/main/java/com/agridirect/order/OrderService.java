@@ -1,7 +1,13 @@
 package com.agridirect.order;
 
 import com.agridirect.common.exception.ApiException;
+import com.agridirect.delivery.DeliveryProfile;
+import com.agridirect.delivery.DeliveryRepository;
+import com.agridirect.farmer.FarmerProfile;
+import com.agridirect.farmer.FarmerRepository;
 import com.agridirect.notification.NotificationService;
+import com.agridirect.order.dto.DeliveryOrderResponse;
+import com.agridirect.order.dto.OrderDetailResponse;
 import com.agridirect.order.dto.OrderItemRequest;
 import com.agridirect.order.dto.OrderRequest;
 import com.agridirect.product.Product;
@@ -14,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -28,6 +35,8 @@ public class OrderService {
     @Autowired private ProductService productService;
     @Autowired private UserRepository userRepository;
     @Autowired private NotificationService notificationService;
+    @Autowired private FarmerRepository farmerRepository;
+    @Autowired private DeliveryRepository deliveryRepository;
 
     @Transactional
     public Order placeOrder(UUID buyerId, OrderRequest req) {
@@ -217,5 +226,124 @@ public class OrderService {
 
     public List<Order> getAllOrders() {
         return orderRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    /**
+     * Builds an enriched OrderDetailResponse for buyers and farmers,
+     * joining in buyer/farmer/agent contact info.
+     */
+    public OrderDetailResponse buildOrderDetail(UUID orderId) {
+        Order order = getOrderById(orderId);
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+
+        OrderDetailResponse dto = new OrderDetailResponse();
+        dto.setId(order.getId());
+        dto.setOrderNumber(order.getId().toString().substring(0, 8).toUpperCase());
+        dto.setStatus(order.getStatus());
+        dto.setPaymentStatus(order.getPaymentStatus());
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setDeliveryAddress(order.getDeliveryAddress());
+        dto.setNotes(order.getNotes());
+        dto.setCreatedAt(order.getCreatedAt());
+        dto.setUpdatedAt(order.getUpdatedAt());
+        dto.setItems(items);
+
+        // Buyer contact
+        dto.setBuyerId(order.getBuyerId());
+        userRepository.findById(order.getBuyerId()).ifPresent(buyer -> {
+            dto.setBuyerName(buyer.getName());
+            dto.setBuyerPhone(buyer.getPhone());
+        });
+
+        // Primary farmer contact (first farmer from items)
+        items.stream().map(OrderItem::getFarmerId).filter(java.util.Objects::nonNull)
+                .findFirst().ifPresent(farmerId -> {
+                    dto.setFarmerId(farmerId);
+                    userRepository.findById(farmerId).ifPresent(f -> {
+                        dto.setFarmerName(f.getName());
+                        dto.setFarmerPhone(f.getPhone());
+                    });
+                    farmerRepository.findByUserId(farmerId).ifPresent(fp -> {
+                        dto.setFarmName(fp.getFarmName());
+                        dto.setFarmLocation(fp.getLocation());
+                    });
+                });
+
+        // Delivery agent contact
+        if (order.getDeliveryAgentId() != null) {
+            dto.setDeliveryAgentId(order.getDeliveryAgentId());
+            userRepository.findById(order.getDeliveryAgentId()).ifPresent(agent -> {
+                dto.setAgentName(agent.getName());
+                dto.setAgentPhone(agent.getPhone());
+            });
+            deliveryRepository.findByUserId(order.getDeliveryAgentId()).ifPresent(dp -> {
+                dto.setAgentLat(dp.getCurrentLat());
+                dto.setAgentLng(dp.getCurrentLng());
+                dto.setAgentVehicleType(dp.getVehicleType());
+            });
+        }
+        return dto;
+    }
+
+    /** Builds a DeliveryOrderResponse (lowercase status + contact info) for a delivery partner. */
+    public DeliveryOrderResponse buildDeliveryOrderResponse(Order order) {
+        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+
+        DeliveryOrderResponse dto = new DeliveryOrderResponse();
+        dto.setId(order.getId());
+        dto.setOrderId(order.getId().toString());
+        dto.setOrderNumber(order.getId().toString().substring(0, 8).toUpperCase());
+        dto.setStatus(DeliveryOrderResponse.mapStatus(order.getStatus()));
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setDeliveryFee(order.getTotalAmount() != null ? Math.round(order.getTotalAmount() * 0.05 * 100.0) / 100.0 : 0.0);
+        dto.setCreatedAt(order.getCreatedAt());
+        dto.setUpdatedAt(order.getUpdatedAt());
+        dto.setAssignedAt(order.getUpdatedAt());
+
+        // Buyer contact
+        userRepository.findById(order.getBuyerId()).ifPresent(buyer -> {
+            dto.setBuyerName(buyer.getName());
+            dto.setBuyerPhone(buyer.getPhone());
+        });
+        dto.setDropAddress(order.getDeliveryAddress());
+
+        // Farmer contact (first farmer from items)
+        items.stream().map(OrderItem::getFarmerId).filter(java.util.Objects::nonNull)
+                .findFirst().ifPresent(farmerId -> {
+                    userRepository.findById(farmerId).ifPresent(f -> {
+                        dto.setFarmerName(f.getName());
+                        dto.setFarmerPhone(f.getPhone());
+                    });
+                    farmerRepository.findByUserId(farmerId).ifPresent(fp ->
+                            dto.setPickupAddress(fp.getLocation() != null ? fp.getLocation() : fp.getFarmName()));
+                });
+
+        // Items
+        List<DeliveryOrderResponse.ItemSummary> summaries = new ArrayList<>();
+        for (OrderItem item : items) {
+            DeliveryOrderResponse.ItemSummary s = new DeliveryOrderResponse.ItemSummary();
+            s.setProductName(item.getProductName());
+            s.setQuantity(item.getQuantity());
+            s.setUnit(item.getUnit());
+            s.setPrice(item.getPriceAtOrder());
+            summaries.add(s);
+        }
+        dto.setItems(summaries);
+        dto.setItemCount(items.size());
+        return dto;
+    }
+
+    /** Returns all available orders as DeliveryOrderResponse DTOs. */
+    public List<DeliveryOrderResponse> getAvailableOrdersAsDto() {
+        return getAvailableOrders().stream()
+                .map(this::buildDeliveryOrderResponse)
+                .collect(Collectors.toList());
+    }
+
+    /** Returns delivery agent's assigned orders as DeliveryOrderResponse DTOs. */
+    public List<DeliveryOrderResponse> getAssignedOrdersAsDto(UUID agentId) {
+        return orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(agentId).stream()
+                .map(this::buildDeliveryOrderResponse)
+                .collect(Collectors.toList());
     }
 }

@@ -1,6 +1,7 @@
 package com.agridirect.order;
 
 import com.agridirect.common.dto.ApiResponse;
+import com.agridirect.order.dto.OrderDetailResponse;
 import com.agridirect.order.dto.OrderRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -33,13 +34,26 @@ public class OrderController {
 
     @GetMapping("/api/buyer/orders/{id}")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ApiResponse<Order>> getOrderById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<OrderDetailResponse>> getOrderById(@PathVariable UUID id) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         Order order = orderService.getOrderById(id);
         if (!UUID.fromString(userId).equals(order.getBuyerId())) {
             return ResponseEntity.status(403).body(ApiResponse.error("Not your order"));
         }
-        return ResponseEntity.ok(ApiResponse.success(order));
+        return ResponseEntity.ok(ApiResponse.success(orderService.buildOrderDetail(id)));
+    }
+
+    @GetMapping("/api/farmer/orders/{id}")
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<ApiResponse<OrderDetailResponse>> getFarmerOrderById(@PathVariable UUID id) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(ApiResponse.success(orderService.buildOrderDetail(id)));
+    }
+
+    @GetMapping("/api/admin/orders/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<OrderDetailResponse>> getAdminOrderById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.buildOrderDetail(id)));
     }
 
     @PostMapping("/api/buyer/orders/{id}/cancel")
