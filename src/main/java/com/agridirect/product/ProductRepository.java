@@ -26,6 +26,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     long countByFarmerIdAndIsAvailableTrue(UUID farmerId);
 
+    long countByFarmerId(UUID farmerId);
+
     List<Product> findByApprovalStatus(String approvalStatus);
 
     /** Locks the product row for the duration of the transaction (prevents overselling). */

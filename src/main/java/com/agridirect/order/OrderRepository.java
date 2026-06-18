@@ -22,6 +22,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     List<Order> findAllByOrderByCreatedAtDesc();
 
+    @Query("SELECT o FROM Order o WHERE o.id IN (SELECT i.orderId FROM OrderItem i WHERE i.farmerId = :farmerId) ORDER BY o.createdAt DESC")
+    List<Order> findByFarmerId(@Param("farmerId") UUID farmerId);
+
     java.util.Optional<Order> findByRazorpayOrderId(String razorpayOrderId);
 
     /** Pessimistic lock for claim-order race prevention. */

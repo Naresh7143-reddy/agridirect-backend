@@ -1,8 +1,10 @@
 package com.agridirect.farmer;
 
 import com.agridirect.common.exception.ApiException;
+import com.agridirect.order.Order;
 import com.agridirect.order.OrderItem;
 import com.agridirect.order.OrderItemRepository;
+import com.agridirect.order.OrderRepository;
 import com.agridirect.product.Product;
 import com.agridirect.product.ProductRepository;
 import com.agridirect.user.UserRepository;
@@ -10,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -20,6 +23,7 @@ public class FarmerService {
     @Autowired private FarmerRepository farmerRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private OrderItemRepository orderItemRepository;
+    @Autowired private OrderRepository orderRepository;
     @Autowired private ProductRepository productRepository;
     @Autowired private BankDetailsRepository bankDetailsRepository;
 
@@ -47,18 +51,32 @@ public class FarmerService {
     }
 
     public Map<String, Object> getDashboard(UUID userId) {
-        List<OrderItem> items = orderItemRepository.findByFarmerId(userId);
-        long activeListings = productRepository.countByFarmerIdAndIsAvailableTrue(userId);
-        double totalEarnings = items.stream()
-                .mapToDouble(i -> i.getPriceAtOrder() != null && i.getQuantity() != null
-                        ? i.getPriceAtOrder() * i.getQuantity() : 0.0)
+        List<Order> orders       = orderRepository.findByFarmerId(userId);
+        List<OrderItem> items    = orderItemRepository.findByFarmerId(userId);
+        long activeProducts      = productRepository.countByFarmerIdAndIsAvailableTrue(userId);
+        long totalProducts       = productRepository.countByFarmerId(userId);
+        long totalOrders         = orders.size();
+        long pendingOrders       = orders.stream().filter(o -> "PENDING".equalsIgnoreCase(o.getStatus())).count();
+        long acceptedOrders      = orders.stream().filter(o -> "ACCEPTED".equalsIgnoreCase(o.getStatus())).count();
+        long deliveredOrders     = orders.stream().filter(o -> "DELIVERED".equalsIgnoreCase(o.getStatus())).count();
+        double totalRevenue      = orders.stream()
+                .filter(o -> "DELIVERED".equalsIgnoreCase(o.getStatus()))
+                .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount() : 0.0)
                 .sum();
-        return Map.of(
-                "todayOrdersCount",    0,
-                "activeListingsCount", activeListings,
-                "pendingOrdersCount",  0,
-                "totalEarnings",       totalEarnings
-        );
+        double allOrdersValue    = orders.stream()
+                .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount() : 0.0)
+                .sum();
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("totalRevenue",    totalRevenue);
+        map.put("totalEarnings",   allOrdersValue);
+        map.put("totalOrders",     totalOrders);
+        map.put("pendingOrders",   pendingOrders);
+        map.put("acceptedOrders",  acceptedOrders);
+        map.put("deliveredOrders", deliveredOrders);
+        map.put("activeProducts",  activeProducts);
+        map.put("totalProducts",   totalProducts);
+        map.put("averageRating",   0.0);
+        return map;
     }
 
     public BankDetails getBankDetails(UUID userId) {
