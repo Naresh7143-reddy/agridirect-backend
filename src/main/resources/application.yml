@@ -57,7 +57,7 @@ cloudinary:
   api-secret: ${CLOUDINARY_API_SECRET}
 
 google-maps:
-  api-key: ${GOOGLE_MAPS_API_KEY}
+  api-key: ${GOOGLE_MAPS_API_KEY:}
 
 delivery:
   base-cost: ${DELIVERY_BASE_COST:50}

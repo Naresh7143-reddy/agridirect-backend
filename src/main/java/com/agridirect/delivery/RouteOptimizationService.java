@@ -131,9 +131,10 @@ public class RouteOptimizationService {
         
         // Nearest neighbor algorithm
         while (!remaining.isEmpty()) {
+            final DeliveryStop currentStop = current;
             DeliveryStop nearest = remaining.stream()
                     .min(Comparator.comparingDouble(stop -> 
-                        calculateDistance(current.getLatitude(), current.getLongitude(),
+                        calculateDistance(currentStop.getLatitude(), currentStop.getLongitude(),
                                         stop.getLatitude(), stop.getLongitude())))
                     .orElse(null);
             
