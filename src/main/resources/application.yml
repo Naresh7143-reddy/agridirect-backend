@@ -56,5 +56,16 @@ cloudinary:
   api-key: ${CLOUDINARY_API_KEY}
   api-secret: ${CLOUDINARY_API_SECRET}
 
+google-maps:
+  api-key: ${GOOGLE_MAPS_API_KEY}
+
+delivery:
+  base-cost: ${DELIVERY_BASE_COST:50}
+  per-km-cost: ${DELIVERY_PER_KM_COST:8}
+  per-minute-cost: ${DELIVERY_PER_MINUTE_COST:1}
+  min-delivery-radius-km: ${MIN_DELIVERY_RADIUS:0.5}
+  max-delivery-radius-km: ${MAX_DELIVERY_RADIUS:25}
+  delivery-partner-search-radius-km: ${DELIVERY_PARTNER_SEARCH_RADIUS:5}
+
 server:
   port: ${PORT:8001}

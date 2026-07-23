@@ -1,148 +1,308 @@
 package com.agridirect.delivery;
 
-import com.agridirect.common.exception.ApiException;
-import com.agridirect.notification.NotificationService;
-import com.agridirect.order.Order;
-import com.agridirect.order.OrderRepository;
-import com.agridirect.user.UserRepository;
+import com.agridirect.delivery.dto.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
+/**
+ * Main delivery service orchestrating all delivery-related operations
+ */
 @Service
 public class DeliveryService {
-
-    private static final Set<String> ALLOWED_STATUSES = Set.of("PICKED_UP", "ON_THE_WAY", "IN_TRANSIT", "DELIVERED");
-
-    @Autowired private DeliveryRepository deliveryRepository;
-    @Autowired private OrderRepository orderRepository;
-    @Autowired private UserRepository userRepository;
-    @Autowired private NotificationService notificationService;
-    @Autowired private com.agridirect.order.OrderService orderService;
-
-    public DeliveryProfile getProfile(UUID userId) {
-        return deliveryRepository.findByUserId(userId)
-                .orElseThrow(() -> new ApiException("Delivery profile not found", HttpStatus.NOT_FOUND));
-    }
-
-    public DeliveryProfile updateAvailability(UUID userId, boolean available) {
-        DeliveryProfile profile = getProfile(userId);
-        profile.setAvailable(available);
-        return deliveryRepository.save(profile);
-    }
-
-    public List<Order> getAssignedOrders(UUID agentId) {
-        return orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(agentId);
-    }
-
-    public List<Order> getAvailableOrders() {
-        return orderService.getAvailableOrders();
-    }
-
-    public Order claimOrder(UUID agentId, UUID orderId) {
-        return orderService.claimOrder(agentId, orderId);
-    }
-
-    public Order updateOrderStatus(UUID agentId, UUID orderId, String status) {
-        // Normalize IN_TRANSIT → ON_THE_WAY for storage
-        String normalizedStatus = "IN_TRANSIT".equalsIgnoreCase(status) ? "IN_TRANSIT" : status.toUpperCase();
-        if (!ALLOWED_STATUSES.contains(normalizedStatus)) {
-            throw new ApiException("Invalid status. Allowed: PICKED_UP, IN_TRANSIT, DELIVERED", HttpStatus.BAD_REQUEST);
+    
+    private static final Logger logger = LoggerFactory.getLogger(DeliveryService.class);
+    
+    @Autowired
+    private MapsService mapsService;
+    
+    @Autowired
+    private DeliveryCostCalculator deliveryCostCalculator;
+    
+    @Autowired
+    private DeliveryMatchingService deliveryMatchingService;
+    
+    @Autowired
+    private RouteOptimizationService routeOptimizationService;
+    
+    @Autowired
+    private LocationRepository locationRepository;
+    
+    @Autowired
+    private DeliveryPartnerRepository deliveryPartnerRepository;
+    
+    @Autowired
+    private DeliveryTrackingRepository deliveryTrackingRepository;
+    
+    /**
+     * Estimate delivery cost and time for an order
+     * This is the main API endpoint for cost/time calculation
+     */
+    public DeliveryEstimateResponseDTO estimateDelivery(DeliveryEstimateRequestDTO request) {
+        logger.info("Estimating delivery from ({},{}) to ({},{})", 
+                   request.getSourceLatitude(), request.getSourceLongitude(),
+                   request.getDestLatitude(), request.getDestLongitude());
+        
+        // Get distance and duration from Maps API
+        DeliveryDistanceMatrixDTO distanceMatrix = mapsService.getDistanceAndDuration(
+                request.getSourceLatitude(), request.getSourceLongitude(),
+                request.getDestLatitude(), request.getDestLongitude());
+        
+        // If Maps API fails, use fallback Haversine formula
+        if (!distanceMatrix.isSuccessful()) {
+            logger.warn("Maps API failed, using Haversine fallback");
+            Double distanceKm = mapsService.getHaversineDistance(
+                    request.getSourceLatitude(), request.getSourceLongitude(),
+                    request.getDestLatitude(), request.getDestLongitude());
+            Integer timeMinutes = mapsService.estimateDeliveryTimeMinutes(distanceKm);
+            
+            distanceMatrix.setDistanceMeters(distanceKm * 1000);
+            distanceMatrix.setDurationSeconds((long) timeMinutes * 60);
+            distanceMatrix.setStatus("OK");
         }
-        status = normalizedStatus;
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ApiException("Order not found", HttpStatus.NOT_FOUND));
-        if (!agentId.equals(order.getDeliveryAgentId())) {
-            throw new ApiException("Order not assigned to this agent", HttpStatus.FORBIDDEN);
+        
+        // Calculate cost based on distance and time
+        DeliveryEstimateResponseDTO estimate = deliveryCostCalculator.calculateDeliveryCost(distanceMatrix);
+        
+        logger.info("Delivery estimate calculated: {} km, {} mins, Rs. {}", 
+                   estimate.getDistanceKm(), estimate.getEstimatedTimeMinutes(), estimate.getTotalDeliveryCost());
+        
+        return estimate;
+    }
+    
+    /**
+     * Check delivery availability at a location
+     */
+    public DeliveryMatchingService.DeliveryAvailabilityStatus checkDeliveryAvailability(Double latitude, Double longitude) {
+        return deliveryMatchingService.checkAvailability(latitude, longitude);
+    }
+    
+    /**
+     * Match order with best delivery partner
+     */
+    public DeliveryPartnerDTO matchOrderWithPartner(
+            String orderId,
+            Double pickupLat, Double pickupLng,
+            Double deliveryLat, Double deliveryLng) {
+        
+        DeliveryPartner partner = deliveryMatchingService.matchOrderWithPartner(
+                orderId, pickupLat, pickupLng, deliveryLat, deliveryLng);
+        
+        if (partner == null) {
+            logger.warn("Could not find delivery partner for order {}", orderId);
+            return null;
         }
-        order.setStatus(status);
-        Order saved = orderRepository.save(order);
-        // Broadcast SSE to buyer
-        com.agridirect.order.OrderTrackingController.broadcastStatus(orderId, status);
-        final String finalStatus = status;
-        userRepository.findById(order.getBuyerId()).ifPresent(buyer -> {
-            String token = buyer.getFcmToken();
-            switch (finalStatus) {
-                case "PICKED_UP"  -> notificationService.sendOrderPickedUp(token);
-                case "DELIVERED"  -> notificationService.sendOrderDelivered(token);
-                default           -> notificationService.sendToUser(token, "Order Update", "Your order status is now: " + finalStatus);
+        
+        return convertToDTO(partner);
+    }
+    
+    /**
+     * Create location for a user
+     */
+    public LocationDTO createLocation(String userId, String locationType, GeoLocationDTO locationDTO) {
+        Location location = new Location();
+        location.setUserId(userId);
+        location.setLocationType(locationType);
+        location.setLatitude(locationDTO.getLatitude());
+        location.setLongitude(locationDTO.getLongitude());
+        location.setAddress(locationDTO.getAddress());
+        location.setCity(locationDTO.getCity());
+        location.setState(locationDTO.getState());
+        location.setPincode(locationDTO.getPincode());
+        location.setPrimary(locationDTO.getIsPrimary());
+        location.setActive(true);
+        
+        // If marking as primary, unmark others
+        if (locationDTO.getIsPrimary()) {
+            List<Location> existingLocations = locationRepository.findByUserId(userId);
+            for (Location loc : existingLocations) {
+                loc.setPrimary(false);
+                locationRepository.save(loc);
             }
-        });
-        return saved;
-    }
-
-    public Order getOrderById(UUID agentId, UUID orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ApiException("Order not found", HttpStatus.NOT_FOUND));
-        if (!agentId.equals(order.getDeliveryAgentId())) {
-            throw new ApiException("Order not assigned to this agent", HttpStatus.FORBIDDEN);
         }
-        return order;
+        
+        location = locationRepository.save(location);
+        logger.info("Created location {} for user {}", location.getId(), userId);
+        
+        return convertToLocationDTO(location);
     }
-
-    public Order confirmOrder(UUID agentId, UUID orderId) {
-        Order order = getOrderById(agentId, orderId);
-        order.setStatus("DELIVERED");
-        Order saved = orderRepository.save(order);
-        userRepository.findById(order.getBuyerId()).ifPresent(buyer ->
-                notificationService.sendOrderDelivered(buyer.getFcmToken()));
-        return saved;
+    
+    /**
+     * Get user's primary location
+     */
+    public LocationDTO getPrimaryLocation(String userId) {
+        Optional<Location> location = locationRepository.findByUserIdAndIsPrimaryTrue(userId);
+        return location.map(this::convertToLocationDTO).orElse(null);
     }
-
-    public DeliveryProfile updatePhoto(UUID userId, String url) {
-        DeliveryProfile profile = getProfile(userId);
-        profile.setPhotoUrl(url);
-        return deliveryRepository.save(profile);
+    
+    /**
+     * Get all locations for a user
+     */
+    public List<LocationDTO> getUserLocations(String userId) {
+        return locationRepository.findByUserId(userId).stream()
+                .map(this::convertToLocationDTO)
+                .collect(Collectors.toList());
     }
-
-    public DeliveryProfile updateLocation(UUID userId, Double lat, Double lng) {
-        DeliveryProfile profile = getProfile(userId);
-        profile.setCurrentLat(lat);
-        profile.setCurrentLng(lng);
-        return deliveryRepository.save(profile);
+    
+    /**
+     * Update delivery partner location
+     */
+    public void updatePartnerLocation(String partnerId, Double latitude, Double longitude) {
+        deliveryMatchingService.updatePartnerLocation(partnerId, latitude, longitude);
+        logger.info("Updated location for partner {}", partnerId);
     }
-
-    public DeliveryProfile updateLocationAndBroadcast(UUID userId, Double lat, Double lng) {
-        DeliveryProfile saved = updateLocation(userId, lat, lng);
-        // Broadcast to any buyer watching via SSE
-        orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .filter(o -> "PICKED_UP".equals(o.getStatus()) || "IN_TRANSIT".equals(o.getStatus()) || "ON_THE_WAY".equals(o.getStatus()))
-                .findFirst()
-                .ifPresent(active -> com.agridirect.order.OrderTrackingController
-                        .broadcastLocation(active.getId(), lat, lng, active.getStatus()));
-        return saved;
+    
+    /**
+     * Update delivery partner availability
+     */
+    public void updatePartnerAvailability(String partnerId, Boolean isAvailable, 
+                                         Double latitude, Double longitude) {
+        deliveryMatchingService.updatePartnerAvailability(partnerId, isAvailable, latitude, longitude);
+        logger.info("Updated availability for partner {}: {}", partnerId, isAvailable);
     }
-
-    public DeliveryProfile updateProfile(UUID userId, java.util.Map<String, Object> updates) {
-        DeliveryProfile profile = getProfile(userId);
-        if (updates.get("vehicleType") != null)   profile.setVehicleType((String) updates.get("vehicleType"));
-        if (updates.get("vehicleNumber") != null) profile.setLicenseNo((String) updates.get("vehicleNumber"));
-        if (updates.get("licenseNumber") != null) profile.setLicenseNo((String) updates.get("licenseNumber"));
-        return deliveryRepository.save(profile);
+    
+    /**
+     * Update delivery tracking
+     */
+    public DeliveryTrackingDTO updateDeliveryTracking(DeliveryTrackingUpdateDTO updateDTO) {
+        Optional<DeliveryTracking> existing = deliveryTrackingRepository.findByOrderId(updateDTO.getOrderId());
+        
+        if (!existing.isPresent()) {
+            logger.warn("Delivery tracking not found for order {}", updateDTO.getOrderId());
+            return null;
+        }
+        
+        DeliveryTracking tracking = existing.get();
+        tracking.setStatus(updateDTO.getStatus());
+        tracking.setCurrentLatitude(updateDTO.getCurrentLatitude());
+        tracking.setCurrentLongitude(updateDTO.getCurrentLongitude());
+        tracking.setCurrentAddress(updateDTO.getCurrentAddress());
+        tracking.setDistanceRemainingKm(updateDTO.getDistanceRemainingKm());
+        tracking.setEstimatedArrivalTime(updateDTO.getEstimatedArrivalTime());
+        tracking.setNotes(updateDTO.getNotes());
+        
+        // Update status-specific timestamps
+        if ("PICKED_UP".equals(updateDTO.getStatus()) && tracking.getPickedUpAt() == null) {
+            tracking.setPickedUpAt(System.currentTimeMillis());
+        } else if ("DELIVERED".equals(updateDTO.getStatus()) && tracking.getDeliveredAt() == null) {
+            tracking.setDeliveredAt(System.currentTimeMillis());
+            
+            // Calculate delay if estimated arrival was provided
+            if (tracking.getEstimatedArrivalTime() != null) {
+                long delayMs = System.currentTimeMillis() - tracking.getEstimatedArrivalTime();
+                if (delayMs > 0) {
+                    tracking.setTotalDelaySeconds((int) (delayMs / 1000));
+                }
+            }
+            
+            // Decrement partner's order count
+            deliveryMatchingService.decrementPartnerOrderCount(tracking.getDeliveryPartnerId());
+        }
+        
+        tracking = deliveryTrackingRepository.save(tracking);
+        logger.info("Updated tracking for order {}: status={}", updateDTO.getOrderId(), updateDTO.getStatus());
+        
+        return convertToTrackingDTO(tracking);
     }
-
-    public Map<String, Object> getEarnings(UUID agentId) {
-        List<Order> delivered = orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(agentId)
-                .stream().filter(o -> "DELIVERED".equals(o.getStatus())).toList();
-        double total = delivered.stream()
-                .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount() * 0.05 : 0.0)
-                .sum();
-        Map<String, Object> result = new HashMap<>();
-        result.put("total", total);
-        result.put("pending", 0.0);
-        result.put("paid", total);
-        result.put("today", 0.0);
-        result.put("thisWeek", 0.0);
-        result.put("thisMonth", total);
-        result.put("byDate", List.of());
-        result.put("totalDeliveries", delivered.size());
-        return result;
+    
+    /**
+     * Get delivery tracking for an order
+     */
+    public DeliveryTrackingDTO getDeliveryTracking(String orderId) {
+        Optional<DeliveryTracking> tracking = deliveryTrackingRepository.findByOrderId(orderId);
+        return tracking.map(this::convertToTrackingDTO).orElse(null);
+    }
+    
+    /**
+     * Get active deliveries for a partner
+     */
+    public List<DeliveryTrackingDTO> getActiveDeliveriesForPartner(String partnerId) {
+        return deliveryTrackingRepository.findActiveDeliveriesForPartner(partnerId).stream()
+                .map(this::convertToTrackingDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get delivery partner details
+     */
+    public DeliveryPartnerDTO getDeliveryPartner(String partnerId) {
+        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId);
+        return partner.map(this::convertToDTO).orElse(null);
+    }
+    
+    /**
+     * Get available delivery partners count
+     */
+    public Integer getAvailablePartnersCount() {
+        return deliveryMatchingService.getAvailablePartnersCount();
+    }
+    
+    // Conversion helper methods
+    private LocationDTO convertToLocationDTO(Location location) {
+        LocationDTO dto = new LocationDTO();
+        dto.setId(location.getId());
+        dto.setUserId(location.getUserId());
+        dto.setLocationType(location.getLocationType());
+        dto.setLatitude(location.getLatitude());
+        dto.setLongitude(location.getLongitude());
+        dto.setAddress(location.getAddress());
+        dto.setCity(location.getCity());
+        dto.setState(location.getState());
+        dto.setPincode(location.getPincode());
+        dto.setIsPrimary(location.getPrimary());
+        dto.setIsActive(location.getActive());
+        dto.setCreatedAt(location.getCreatedAt());
+        dto.setUpdatedAt(location.getUpdatedAt());
+        return dto;
+    }
+    
+    private DeliveryTrackingDTO convertToTrackingDTO(DeliveryTracking tracking) {
+        DeliveryTrackingDTO dto = new DeliveryTrackingDTO();
+        dto.setId(tracking.getId());
+        dto.setOrderId(tracking.getOrderId());
+        dto.setDeliveryPartnerId(tracking.getDeliveryPartnerId());
+        dto.setStatus(tracking.getStatus());
+        dto.setCurrentLatitude(tracking.getCurrentLatitude());
+        dto.setCurrentLongitude(tracking.getCurrentLongitude());
+        dto.setCurrentAddress(tracking.getCurrentAddress());
+        dto.setDistanceRemainingKm(tracking.getDistanceRemainingKm());
+        dto.setEstimatedArrivalTime(tracking.getEstimatedArrivalTime());
+        dto.setLastUpdateTime(tracking.getLastUpdateTime());
+        dto.setAssignedAt(tracking.getAssignedAt());
+        dto.setPickedUpAt(tracking.getPickedUpAt());
+        dto.setDeliveredAt(tracking.getDeliveredAt());
+        dto.setTotalDelaySeconds(tracking.getTotalDelaySeconds());
+        dto.setNotes(tracking.getNotes());
+        dto.setCreatedAt(tracking.getCreatedAt());
+        dto.setUpdatedAt(tracking.getUpdatedAt());
+        return dto;
+    }
+    
+    private DeliveryPartnerDTO convertToDTO(DeliveryPartner partner) {
+        DeliveryPartnerDTO dto = new DeliveryPartnerDTO();
+        dto.setId(partner.getId());
+        dto.setUserId(partner.getUserId());
+        dto.setName(partner.getName());
+        dto.setPhone(partner.getPhone());
+        dto.setVehicleType(partner.getVehicleType());
+        dto.setVehicleRegistration(partner.getVehicleRegistration());
+        dto.setCurrentLatitude(partner.getCurrentLatitude());
+        dto.setCurrentLongitude(partner.getCurrentLongitude());
+        dto.setIsAvailable(partner.getIsAvailable());
+        dto.setCurrentOrdersCount(partner.getCurrentOrdersCount());
+        dto.setMaxConcurrentOrders(partner.getMaxConcurrentOrders());
+        dto.setTotalDeliveries(partner.getTotalDeliveries());
+        dto.setAvgRating(partner.getAvgRating());
+        dto.setVerificationStatus(partner.getVerificationStatus());
+        dto.setIsActive(partner.getIsActive());
+        dto.setLastLocationUpdate(partner.getLastLocationUpdate());
+        dto.setCreatedAt(partner.getCreatedAt());
+        dto.setUpdatedAt(partner.getUpdatedAt());
+        return dto;
     }
 }

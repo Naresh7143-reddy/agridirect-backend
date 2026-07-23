@@ -65,9 +65,13 @@ public class OrderController {
 
     @GetMapping("/api/farmer/orders")
     @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<ApiResponse<List<Order>>> getFarmerOrders() {
+    public ResponseEntity<ApiResponse<List<OrderDetailResponse>>> getFarmerOrders() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(ApiResponse.success(orderService.getFarmerOrders(UUID.fromString(userId))));
+        List<Order> orders = orderService.getFarmerOrders(UUID.fromString(userId));
+        List<OrderDetailResponse> enriched = orders.stream()
+                .map(o -> orderService.buildOrderDetail(o.getId()))
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(enriched));
     }
 
     @PutMapping("/api/farmer/orders/{id}/accept")

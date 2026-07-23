@@ -47,6 +47,12 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(productService.getMyListings(UUID.fromString(userId))));
     }
 
+    @GetMapping("/api/farmer/products/{id}")
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<ApiResponse<ProductResponse>> getFarmerProductById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(productService.getProductById(id)));
+    }
+
     @PostMapping("/api/farmer/products")
     @PreAuthorize("hasRole('FARMER')")
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@RequestBody ProductRequest req) {
