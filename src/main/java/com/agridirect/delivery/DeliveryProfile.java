@@ -1,85 +1,168 @@
 package com.agridirect.delivery;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Delivery partner profile entity
+ */
 @Entity
 @Table(name = "delivery_profiles")
 public class DeliveryProfile {
-
+    
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @Column(name = "user_id")
+    
+    @Column(nullable = false)
     private UUID userId;
-
-    @Column(name = "vehicle_type")
+    
+    @Column(length = 50)
     private String vehicleType;
-
-    @Column(name = "license_no")
+    
+    @Column(name = "license_no", length = 100)
     private String licenseNo;
-
+    
     @Column(name = "is_available")
-    private boolean isAvailable = true;
+    private Boolean isAvailable;
+    
+    @Column(name = "current_latitude")
+    private Double currentLatitude;
+    
+    @Column(name = "current_longitude")
+    private Double currentLongitude;
+    
+    @Column(name = "created_at")
+    private Long createdAt;
+    
+    @Column(name = "updated_at")
+    private Long updatedAt;
 
-    @Column(name = "photo_url")
-    private String photoUrl;
-
-    @Column(name = "current_lat")
-    private Double currentLat;
-
-    @Column(name = "current_lng")
-    private Double currentLng;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    public DeliveryProfile() {}
-
-    private DeliveryProfile(Builder b) {
-        this.userId = b.userId;
-        this.vehicleType = b.vehicleType;
-        this.licenseNo = b.licenseNo;
-        this.isAvailable = b.isAvailable;
+    // Constructors
+    public DeliveryProfile() {
+        this.createdAt = System.currentTimeMillis();
+        this.updatedAt = System.currentTimeMillis();
     }
 
-    public static Builder builder() { return new Builder(); }
+    // Builder pattern
+    public static Builder builder() {
+        return new Builder();
+    }
 
     public static class Builder {
-        private UUID userId;
-        private String vehicleType, licenseNo;
-        private boolean isAvailable = true;
-        public Builder userId(UUID v)          { this.userId = v; return this; }
-        public Builder vehicleType(String v)   { this.vehicleType = v; return this; }
-        public Builder licenseNo(String v)     { this.licenseNo = v; return this; }
-        public Builder isAvailable(boolean v)  { this.isAvailable = v; return this; }
-        public DeliveryProfile build()         { return new DeliveryProfile(this); }
+        private final DeliveryProfile profile = new DeliveryProfile();
+
+        public Builder userId(UUID userId) {
+            profile.userId = userId;
+            return this;
+        }
+
+        public Builder vehicleType(String vehicleType) {
+            profile.vehicleType = vehicleType;
+            return this;
+        }
+
+        public Builder licenseNo(String licenseNo) {
+            profile.licenseNo = licenseNo;
+            return this;
+        }
+
+        public Builder isAvailable(Boolean isAvailable) {
+            profile.isAvailable = isAvailable;
+            return this;
+        }
+
+        public DeliveryProfile build() {
+            return profile;
+        }
     }
 
-    // Getters
-    public UUID getId()             { return id; }
-    public UUID getUserId()         { return userId; }
-    public String getVehicleType()  { return vehicleType; }
-    public String getLicenseNo()    { return licenseNo; }
-    public boolean isAvailable()    { return isAvailable; }
-    public String getPhotoUrl()     { return photoUrl; }
-    public Double getCurrentLat()   { return currentLat; }
-    public Double getCurrentLng()   { return currentLng; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    // Getters and Setters
+    public UUID getId() {
+        return id;
+    }
 
-    // Setters
-    public void setId(UUID id)              { this.id = id; }
-    public void setUserId(UUID userId)      { this.userId = userId; }
-    public void setVehicleType(String v)    { this.vehicleType = v; }
-    public void setLicenseNo(String v)      { this.licenseNo = v; }
-    public void setAvailable(boolean v)     { this.isAvailable = v; }
-    public void setPhotoUrl(String v)       { this.photoUrl = v; }
-    public void setCurrentLat(Double v)     { this.currentLat = v; }
-    public void setCurrentLng(Double v)     { this.currentLng = v; }
-    public void setCreatedAt(LocalDateTime v){ this.createdAt = v; }
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+
+    public String getVehicleType() {
+        return vehicleType;
+    }
+
+    public void setVehicleType(String vehicleType) {
+        this.vehicleType = vehicleType;
+    }
+
+    public String getLicenseNo() {
+        return licenseNo;
+    }
+
+    public void setLicenseNo(String licenseNo) {
+        this.licenseNo = licenseNo;
+    }
+
+    public Boolean getIsAvailable() {
+        return isAvailable;
+    }
+
+    public void setIsAvailable(Boolean isAvailable) {
+        this.isAvailable = isAvailable;
+    }
+
+    public Double getCurrentLatitude() {
+        return currentLatitude;
+    }
+
+    public void setCurrentLatitude(Double currentLatitude) {
+        this.currentLatitude = currentLatitude;
+    }
+
+    public Double getCurrentLongitude() {
+        return currentLongitude;
+    }
+
+    public void setCurrentLongitude(Double currentLongitude) {
+        this.currentLongitude = currentLongitude;
+    }
+
+    public Double getCurrentLat() {
+        return currentLatitude;
+    }
+
+    public void setCurrentLat(Double currentLat) {
+        this.currentLatitude = currentLat;
+    }
+
+    public Double getCurrentLng() {
+        return currentLongitude;
+    }
+
+    public void setCurrentLng(Double currentLng) {
+        this.currentLongitude = currentLng;
+    }
+
+    public Long getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Long createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Long getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Long updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }

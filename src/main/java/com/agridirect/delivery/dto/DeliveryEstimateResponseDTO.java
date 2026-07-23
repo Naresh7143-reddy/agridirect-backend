@@ -2,6 +2,7 @@ package com.agridirect.delivery.dto;
 
 public class DeliveryEstimateResponseDTO {
     
+    private String status; // e.g., SUCCESS, OUT_OF_DELIVERY_RANGE, DELIVERY_NOT_AVAILABLE
     private Double distanceKm;
     private Integer estimatedTimeMinutes;
     private Double baseCost;
@@ -28,6 +29,14 @@ public class DeliveryEstimateResponseDTO {
     }
 
     // Getters and Setters
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public Double getDistanceKm() {
         return distanceKm;
     }

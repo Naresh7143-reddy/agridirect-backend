@@ -27,14 +27,14 @@ public class DeliveryController {
 
     @GetMapping("/profile")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<DeliveryProfile>> getProfile() {
+    public ResponseEntity<ApiResponse<DeliveryPartnerProfile>> getProfile() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(ApiResponse.success(deliveryService.getProfile(UUID.fromString(userId))));
     }
 
     @PutMapping("/availability")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<DeliveryProfile>> updateAvailability(@RequestBody Map<String, Boolean> body) {
+    public ResponseEntity<ApiResponse<DeliveryPartnerProfile>> updateAvailability(@RequestBody Map<String, Boolean> body) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         boolean available = Boolean.TRUE.equals(body.get("available"));
         return ResponseEntity.ok(ApiResponse.success(deliveryService.updateAvailability(UUID.fromString(userId), available)));
@@ -102,7 +102,7 @@ public class DeliveryController {
 
     @PutMapping("/profile")
     @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<DeliveryProfile>> updateProfile(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<ApiResponse<DeliveryPartnerProfile>> updateProfile(@RequestBody Map<String, Object> body) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(ApiResponse.success(deliveryService.updateProfile(UUID.fromString(userId), body)));
     }

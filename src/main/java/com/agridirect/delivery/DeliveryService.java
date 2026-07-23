@@ -241,6 +241,145 @@ public class DeliveryService {
     public Integer getAvailablePartnersCount() {
         return deliveryMatchingService.getAvailablePartnersCount();
     }
+
+    /**
+     * Get delivery partner profile
+     */
+    public DeliveryPartnerProfile getProfile(java.util.UUID partnerId) {
+        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
+        if (!partner.isPresent()) {
+            return null;
+        }
+        
+        DeliveryPartner p = partner.get();
+        DeliveryPartnerProfile profile = new DeliveryPartnerProfile();
+        profile.setId(p.getId());
+        profile.setName(p.getName());
+        profile.setPhone(p.getPhone());
+        profile.setVehicleType(p.getVehicleType());
+        profile.setVehicleRegistration(p.getVehicleRegistration());
+        profile.setAvailable(p.getIsAvailable());
+        profile.setRating(p.getAvgRating());
+        profile.setTotalDeliveries(p.getTotalDeliveries());
+        profile.setCurrentOrderCount(p.getCurrentOrdersCount());
+        profile.setMaxConcurrentOrders(p.getMaxConcurrentOrders());
+        return profile;
+    }
+
+    /**
+     * Update delivery partner availability
+     */
+    public DeliveryPartnerProfile updateAvailability(java.util.UUID partnerId, boolean available) {
+        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
+        if (!partner.isPresent()) {
+            return null;
+        }
+        
+        DeliveryPartner p = partner.get();
+        p.setIsAvailable(available);
+        deliveryPartnerRepository.save(p);
+        logger.info("Updated availability for partner {}: {}", partnerId, available);
+        
+        return getProfile(partnerId);
+    }
+
+    /**
+     * Claim an available order
+     */
+    public com.agridirect.order.Order claimOrder(java.util.UUID partnerId, java.util.UUID orderId) {
+        // This will be implemented by OrderService
+        logger.info("Partner {} claiming order {}", partnerId, orderId);
+        return null;
+    }
+
+    /**
+     * Update order status
+     */
+    public com.agridirect.order.Order updateOrderStatus(java.util.UUID partnerId, java.util.UUID orderId, String status) {
+        logger.info("Updating order {} status to {} for partner {}", orderId, status, partnerId);
+        return null;
+    }
+
+    /**
+     * Get order by ID
+     */
+    public com.agridirect.order.Order getOrderById(java.util.UUID partnerId, java.util.UUID orderId) {
+        logger.info("Getting order {} for partner {}", orderId, partnerId);
+        return null;
+    }
+
+    /**
+     * Confirm delivery
+     */
+    public com.agridirect.order.Order confirmOrder(java.util.UUID partnerId, java.util.UUID orderId) {
+        logger.info("Partner {} confirming delivery for order {}", partnerId, orderId);
+        return null;
+    }
+
+    /**
+     * Update partner location and broadcast
+     */
+    public void updateLocationAndBroadcast(java.util.UUID partnerId, Double latitude, Double longitude) {
+        updatePartnerLocation(partnerId.toString(), latitude, longitude);
+        logger.info("Updated location for partner {} to ({},{})", partnerId, latitude, longitude);
+    }
+
+    /**
+     * Update delivery partner profile
+     */
+    public DeliveryPartnerProfile updateProfile(java.util.UUID partnerId, java.util.Map<String, Object> updates) {
+        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
+        if (!partner.isPresent()) {
+            return null;
+        }
+        
+        DeliveryPartner p = partner.get();
+        
+        if (updates.containsKey("name")) {
+            p.setName((String) updates.get("name"));
+        }
+        if (updates.containsKey("phone")) {
+            p.setPhone((String) updates.get("phone"));
+        }
+        if (updates.containsKey("vehicleType")) {
+            p.setVehicleType((String) updates.get("vehicleType"));
+        }
+        if (updates.containsKey("vehicleRegistration")) {
+            p.setVehicleRegistration((String) updates.get("vehicleRegistration"));
+        }
+        
+        deliveryPartnerRepository.save(p);
+        logger.info("Updated profile for partner {}", partnerId);
+        
+        return getProfile(partnerId);
+    }
+
+    /**
+     * Update partner profile photo
+     */
+    public void updatePhoto(java.util.UUID partnerId, String photoUrl) {
+        logger.info("Updated photo URL for partner {} to {}", partnerId, photoUrl);
+        // Photo URL storage logic would go here
+    }
+
+    /**
+     * Get earnings for a delivery partner
+     */
+    public java.util.Map<String, Object> getEarnings(java.util.UUID partnerId) {
+        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
+        if (!partner.isPresent()) {
+            return new java.util.HashMap<>();
+        }
+        
+        DeliveryPartner p = partner.get();
+        java.util.Map<String, Object> earnings = new java.util.HashMap<>();
+        earnings.put("totalEarnings", 0.0); // Will be calculated from orders
+        earnings.put("todayEarnings", 0.0);
+        earnings.put("totalDeliveries", p.getTotalDeliveries());
+        earnings.put("pendingAmount", 0.0);
+        earnings.put("rating", p.getAvgRating());
+        return earnings;
+    }
     
     // Conversion helper methods
     private LocationDTO convertToLocationDTO(Location location) {
