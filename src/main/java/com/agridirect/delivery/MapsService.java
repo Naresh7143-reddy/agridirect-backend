@@ -1,28 +1,35 @@
 package com.agridirect.delivery;
 
 import com.agridirect.delivery.dto.DeliveryDistanceMatrixDTO;
-import com.google.maps.DistanceMatrixApi;
-import com.google.maps.GeoApiContext;
-import com.google.maps.errors.ApiException;
-import com.google.maps.model.DistanceMatrix;
-import com.google.maps.model.LatLng;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonArray;
 
 /**
  * Service for Google Maps API integration
+ * Uses REST API instead of Java client library for better compatibility
  */
 @Service
 public class MapsService {
     
     private static final Logger logger = LoggerFactory.getLogger(MapsService.class);
+    private static final String GOOGLE_MAPS_API_URL = "https://maps.googleapis.com/maps/api/distancematrix/json";
     
-    @Autowired
-    private GeoApiContext geoApiContext;
+    @Value("${google-maps.api-key}")
+    private String apiKey;
     
     /**
      * Get distance and duration between two coordinates using Distance Matrix API
@@ -38,44 +45,63 @@ public class MapsService {
             Double destLatitude, Double destLongitude) {
         
         try {
-            LatLng origin = new LatLng(sourceLatitude, sourceLongitude);
-            LatLng destination = new LatLng(destLatitude, destLongitude);
+            String origins = sourceLatitude + "," + sourceLongitude;
+            String destinations = destLatitude + "," + destLongitude;
             
-            DistanceMatrix result = DistanceMatrixApi.newRequest(geoApiContext)
-                    .origins(origin)
-                    .destinations(destination)
-                    .await();
+            String url = GOOGLE_MAPS_API_URL + "?origins=" + URLEncoder.encode(origins, StandardCharsets.UTF_8) +
+                    "&destinations=" + URLEncoder.encode(destinations, StandardCharsets.UTF_8) +
+                    "&key=" + apiKey;
             
-            if (result.rows != null && result.rows.length > 0 && 
-                result.rows[0].elements != null && result.rows[0].elements.length > 0) {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+            
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                JsonObject jsonResponse = JsonParser.parseString(response.body()).getAsJsonObject();
+                String status = jsonResponse.get("status").getAsString();
                 
-                com.google.maps.model.DistanceMatrixElement element = result.rows[0].elements[0];
-                
-                if (element.status != null && "OK".equals(element.status.toString())) {
-                    DeliveryDistanceMatrixDTO dto = new DeliveryDistanceMatrixDTO();
-                    dto.setDistanceMeters((double) element.distance.inMeters);
-                    dto.setDurationSeconds((long) element.duration.inSeconds);
-                    dto.setStatus("OK");
-                    
-                    logger.info("Distance: {} m, Duration: {} seconds", 
-                               element.distance.inMeters, element.duration.inSeconds);
-                    
-                    return dto;
-                } else {
-                    String status = element.status != null ? element.status.toString() : "UNKNOWN";
-                    DeliveryDistanceMatrixDTO dto = new DeliveryDistanceMatrixDTO();
-                    dto.setStatus(status);
-                    logger.warn("Distance Matrix API returned status: {}", status);
-                    return dto;
+                if ("OK".equals(status)) {
+                    JsonArray rows = jsonResponse.getAsJsonArray("rows");
+                    if (rows.size() > 0) {
+                        JsonArray elements = rows.get(0).getAsJsonObject().getAsJsonArray("elements");
+                        if (elements.size() > 0) {
+                            JsonObject element = elements.get(0).getAsJsonObject();
+                            String elementStatus = element.get("status").getAsString();
+                            
+                            if ("OK".equals(elementStatus)) {
+                                DeliveryDistanceMatrixDTO dto = new DeliveryDistanceMatrixDTO();
+                                
+                                int distanceMeters = element.getAsJsonObject("distance").get("value").getAsInt();
+                                long durationSeconds = element.getAsJsonObject("duration").get("value").getAsLong();
+                                
+                                dto.setDistanceMeters((double) distanceMeters);
+                                dto.setDurationSeconds(durationSeconds);
+                                dto.setStatus("OK");
+                                
+                                logger.info("Distance: {} m, Duration: {} seconds", distanceMeters, durationSeconds);
+                                
+                                return dto;
+                            }
+                        }
+                    }
                 }
+                
+                DeliveryDistanceMatrixDTO dto = new DeliveryDistanceMatrixDTO();
+                dto.setStatus(status);
+                logger.warn("Distance Matrix API returned status: {}", status);
+                return dto;
             }
             
             DeliveryDistanceMatrixDTO dto = new DeliveryDistanceMatrixDTO();
-            dto.setStatus("ZERO_RESULTS");
-            logger.warn("No results from Distance Matrix API");
+            dto.setStatus("HTTP_ERROR_" + response.statusCode());
+            logger.warn("HTTP Error from Google Maps API: {}", response.statusCode());
             return dto;
             
-        } catch (ApiException | InterruptedException | IOException e) {
+        } catch (IOException | InterruptedException e) {
             logger.error("Error calling Google Maps Distance Matrix API", e);
             DeliveryDistanceMatrixDTO dto = new DeliveryDistanceMatrixDTO();
             dto.setStatus("ERROR");
