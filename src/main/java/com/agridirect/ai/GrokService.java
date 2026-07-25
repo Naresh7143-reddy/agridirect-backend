@@ -35,14 +35,13 @@ public class GrokService {
 
     /** Text models tried in order — fast first, then more capable */
     private static final String[] TEXT_MODELS = {
-            "grok-3-fast",
-            "grok-3",
-            "grok-2-1212",
+            "grok-4.5",
+            "grok-4.3",
     };
 
     /** Vision models for image analysis */
     private static final String[] VISION_MODELS = {
-            "grok-2-vision-1212",
+            "grok-4.5",
     };
 
     @Value("${xai.api-key:}")
