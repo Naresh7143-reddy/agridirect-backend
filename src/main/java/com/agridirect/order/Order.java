@@ -42,6 +42,9 @@ public class Order {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "delivery_otp", length = 6)
+    private String deliveryOtp;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -62,13 +65,14 @@ public class Order {
         this.razorpayOrderId = b.razorpayOrderId;
         this.razorpayPaymentId = b.razorpayPaymentId;
         this.notes = b.notes;
+        this.deliveryOtp = b.deliveryOtp;
     }
 
     public static Builder builder() { return new Builder(); }
 
     public static class Builder {
         private UUID buyerId, deliveryAgentId;
-        private String status, deliveryAddress, paymentStatus, razorpayOrderId, razorpayPaymentId, notes;
+        private String status, deliveryAddress, paymentStatus, razorpayOrderId, razorpayPaymentId, notes, deliveryOtp;
         private Double totalAmount;
 
         public Builder buyerId(UUID v)              { this.buyerId = v; return this; }
@@ -80,6 +84,7 @@ public class Order {
         public Builder razorpayOrderId(String v)    { this.razorpayOrderId = v; return this; }
         public Builder razorpayPaymentId(String v)  { this.razorpayPaymentId = v; return this; }
         public Builder notes(String v)              { this.notes = v; return this; }
+        public Builder deliveryOtp(String v)        { this.deliveryOtp = v; return this; }
         public Order build()                        { return new Order(this); }
     }
 
@@ -93,6 +98,7 @@ public class Order {
     public String getRazorpayOrderId()   { return razorpayOrderId; }
     public String getRazorpayPaymentId() { return razorpayPaymentId; }
     public String getNotes()             { return notes; }
+    public String getDeliveryOtp()       { return deliveryOtp; }
     public LocalDateTime getCreatedAt()  { return createdAt; }
     public LocalDateTime getUpdatedAt()  { return updatedAt; }
 
@@ -106,6 +112,7 @@ public class Order {
     public void setRazorpayOrderId(String v)   { this.razorpayOrderId = v; }
     public void setRazorpayPaymentId(String v) { this.razorpayPaymentId = v; }
     public void setNotes(String v)             { this.notes = v; }
+    public void setDeliveryOtp(String v)       { this.deliveryOtp = v; }
     public void setCreatedAt(LocalDateTime v)  { this.createdAt = v; }
     public void setUpdatedAt(LocalDateTime v)  { this.updatedAt = v; }
 }
