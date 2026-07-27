@@ -13,6 +13,8 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowedOriginPatterns(
                         "http://localhost:3000",
                         "http://localhost:*",
+                        "http://127.0.0.1:3000",
+                        "http://127.0.0.1:*",
                         "https://agridirect-web.vercel.app",
                         "https://*.agridirect-web.vercel.app"
                 )
