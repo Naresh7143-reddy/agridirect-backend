@@ -122,10 +122,4 @@ public class DeliveryController {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(ApiResponse.success(deliveryService.getEarnings(UUID.fromString(userId))));
     }
-
-    @GetMapping("/location/{orderId}")
-    public ResponseEntity<ApiResponse<com.agridirect.delivery.dto.DeliveryTrackingDTO>> getDeliveryLocation(@PathVariable String orderId) {
-        com.agridirect.delivery.dto.DeliveryTrackingDTO tracking = deliveryService.getDeliveryTracking(orderId);
-        return ResponseEntity.ok(ApiResponse.success(tracking));
-    }
 }
