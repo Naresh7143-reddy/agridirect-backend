@@ -8,6 +8,13 @@ public class DeliveryEstimateResponseDTO {
     private Double baseCost;
     private Double distanceCost;
     private Double timeCost;
+    private Double weightCharges;
+    private Double surgeCharges;
+    private Double weatherSurcharge;
+    private Double platformCommission;
+    private Double deliveryPartnerEarnings;
+    private Double farmerPayout;
+    private Double totalBuyerPayment;
     private Double totalDeliveryCost;
     private Double platformFee;
     private Double grandTotal; // total including platform fee
@@ -100,6 +107,27 @@ public class DeliveryEstimateResponseDTO {
     public void setGrandTotal(Double grandTotal) {
         this.grandTotal = grandTotal;
     }
+
+    public Double getWeightCharges() { return weightCharges; }
+    public void setWeightCharges(Double weightCharges) { this.weightCharges = weightCharges; }
+
+    public Double getSurgeCharges() { return surgeCharges; }
+    public void setSurgeCharges(Double surgeCharges) { this.surgeCharges = surgeCharges; }
+
+    public Double getWeatherSurcharge() { return weatherSurcharge; }
+    public void setWeatherSurcharge(Double weatherSurcharge) { this.weatherSurcharge = weatherSurcharge; }
+
+    public Double getPlatformCommission() { return platformCommission; }
+    public void setPlatformCommission(Double platformCommission) { this.platformCommission = platformCommission; }
+
+    public Double getDeliveryPartnerEarnings() { return deliveryPartnerEarnings; }
+    public void setDeliveryPartnerEarnings(Double deliveryPartnerEarnings) { this.deliveryPartnerEarnings = deliveryPartnerEarnings; }
+
+    public Double getFarmerPayout() { return farmerPayout; }
+    public void setFarmerPayout(Double farmerPayout) { this.farmerPayout = farmerPayout; }
+
+    public Double getTotalBuyerPayment() { return totalBuyerPayment; }
+    public void setTotalBuyerPayment(Double totalBuyerPayment) { this.totalBuyerPayment = totalBuyerPayment; }
 
     public String getEstimatedDeliveryTime() {
         return estimatedDeliveryTime;

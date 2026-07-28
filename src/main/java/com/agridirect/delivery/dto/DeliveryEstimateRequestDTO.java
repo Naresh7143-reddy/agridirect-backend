@@ -33,6 +33,8 @@ public class DeliveryEstimateRequestDTO {
     @Min(value = 1, message = "Order amount must be at least 1")
     private Double orderAmount; // for priority calculations
 
+    private Double weight; // optional weight in kg
+
     // Constructors
     public DeliveryEstimateRequestDTO() {
     }
@@ -104,5 +106,13 @@ public class DeliveryEstimateRequestDTO {
 
     public void setOrderAmount(Double orderAmount) {
         this.orderAmount = orderAmount;
+    }
+
+    public Double getWeight() {
+        return weight;
+    }
+
+    public void setWeight(Double weight) {
+        this.weight = weight;
     }
 }

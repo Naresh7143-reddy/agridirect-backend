@@ -36,7 +36,7 @@ public class DeliveryCostCalculator {
      * Calculate delivery cost based on distance and time
      */
     public DeliveryEstimateResponseDTO calculateDeliveryCost(
-            DeliveryDistanceMatrixDTO distanceMatrix) {
+            DeliveryDistanceMatrixDTO distanceMatrix, Double weight) {
         
         DeliveryEstimateResponseDTO response = new DeliveryEstimateResponseDTO();
         
@@ -62,23 +62,45 @@ public class DeliveryCostCalculator {
         Double distanceCost = Math.max(0, (distanceKm - minDeliveryRadius) * perKmCost);
         Double timeCost = timeMinutes * perMinuteCost;
         
-        Double totalDeliveryCost = baseCostCharged + distanceCost + timeCost;
+        // Weight charges: ₹2 per kg (default to 5kg if null)
+        double actualWeight = weight != null ? weight : 5.0;
+        Double weightCharges = actualWeight * 2.0;
         
-        // Apply peak hour surge (9-11 AM, 12-2 PM, 7-9 PM)
+        // Surge pricing multiplier
         Double surgeMultiplier = calculateSurgeMultiplier();
-        totalDeliveryCost = totalDeliveryCost * surgeMultiplier;
+        Double subtotal = baseCostCharged + distanceCost + timeCost + weightCharges;
+        Double surgeCharges = subtotal * (surgeMultiplier - 1.0);
+        
+        // Weather surcharge (flat ₹30)
+        Double weatherSurcharge = 30.0;
+        
+        Double totalDeliveryCost = subtotal + surgeCharges + weatherSurcharge;
         
         response.setBaseCost(baseCostCharged);
         response.setDistanceCost(distanceCost);
         response.setTimeCost(timeCost);
+        response.setWeightCharges(Math.round(weightCharges * 100.0) / 100.0);
+        response.setSurgeCharges(Math.round(surgeCharges * 100.0) / 100.0);
+        response.setWeatherSurcharge(weatherSurcharge);
         response.setTotalDeliveryCost(Math.round(totalDeliveryCost * 100.0) / 100.0);
         
-        // Platform fee (5%)
-        Double platformFee = Math.round(totalDeliveryCost * 0.05 * 100.0) / 100.0;
-        response.setPlatformFee(platformFee);
+        // Platform fee/commission (5%)
+        Double platformCommission = Math.round(totalDeliveryCost * 0.05 * 100.0) / 100.0;
+        response.setPlatformCommission(platformCommission);
+        response.setPlatformFee(platformCommission);
+        
+        // Delivery Partner Earnings (95% of total delivery cost)
+        Double partnerEarnings = totalDeliveryCost - platformCommission;
+        response.setDeliveryPartnerEarnings(Math.round(partnerEarnings * 100.0) / 100.0);
+        
+        // Farmer Payout (e.g. simulated from orderAmount if available, or just mock it)
+        response.setFarmerPayout(0.0); // Will be updated in Service
+        
+        // Total Buyer Payment (Simulated in Service)
+        response.setTotalBuyerPayment(Math.round((totalDeliveryCost + platformCommission) * 100.0) / 100.0);
         
         // Grand total
-        Double grandTotal = response.getTotalDeliveryCost() + platformFee;
+        Double grandTotal = response.getTotalDeliveryCost() + platformCommission;
         response.setGrandTotal(Math.round(grandTotal * 100.0) / 100.0);
         
         // Format estimated delivery time
@@ -90,6 +112,12 @@ public class DeliveryCostCalculator {
         response.setStatus("SUCCESS");
         
         return response;
+    }
+
+    // Overload for backward compatibility if needed
+    public DeliveryEstimateResponseDTO calculateDeliveryCost(
+            DeliveryDistanceMatrixDTO distanceMatrix) {
+        return calculateDeliveryCost(distanceMatrix, 5.0);
     }
     
     /**
