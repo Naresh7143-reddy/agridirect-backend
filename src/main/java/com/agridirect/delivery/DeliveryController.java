@@ -123,21 +123,6 @@ public class DeliveryController {
         return ResponseEntity.ok(ApiResponse.success(deliveryService.getEarnings(UUID.fromString(userId))));
     }
 
-    @PostMapping("/verify-otp/{orderId}")
-    @PreAuthorize("hasRole('DELIVERY')")
-    public ResponseEntity<ApiResponse<Boolean>> verifyOtp(
-            @PathVariable UUID orderId,
-            @RequestBody Map<String, String> body) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        String otp = body != null ? body.get("otp") : null;
-        boolean verified = deliveryService.verifyOtp(UUID.fromString(userId), orderId, otp);
-        if (verified) {
-            return ResponseEntity.ok(ApiResponse.success("OTP verified and order delivered successfully", true));
-        } else {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid OTP. Please check and try again."));
-        }
-    }
-
     @GetMapping("/location/{orderId}")
     public ResponseEntity<ApiResponse<com.agridirect.delivery.dto.DeliveryTrackingDTO>> getDeliveryLocation(@PathVariable String orderId) {
         com.agridirect.delivery.dto.DeliveryTrackingDTO tracking = deliveryService.getDeliveryTracking(orderId);

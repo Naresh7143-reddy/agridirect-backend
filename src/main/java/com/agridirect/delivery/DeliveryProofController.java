@@ -17,15 +17,27 @@ public class DeliveryProofController {
     @Autowired
     private DeliveryProofService deliveryProofService;
 
+    @Autowired
+    private DeliveryService deliveryService;
+
     @PostMapping("/verify-otp/{orderId}")
-    @PreAuthorize("hasRole('DELIVERY_AGENT')")
-    public ResponseEntity<ApiResponse<DeliveryProof>> verifyOtp(
+    @PreAuthorize("hasRole('DELIVERY') or hasRole('DELIVERY_AGENT')")
+    public ResponseEntity<ApiResponse<Object>> verifyOtp(
             @PathVariable UUID orderId,
             @RequestBody Map<String, String> request) {
         
         String userIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
         UUID deliveryAgentId = UUID.fromString(userIdStr);
-        String otp = request.get("otp");
+        String otp = request != null ? request.get("otp") : null;
+
+        try {
+            boolean verified = deliveryService.verifyOtp(deliveryAgentId, orderId, otp);
+            if (verified) {
+                return ResponseEntity.ok(ApiResponse.success("OTP verified and order delivered successfully", true));
+            }
+        } catch (Exception e) {
+            // Fallback to DeliveryProofService
+        }
 
         try {
             DeliveryProof proof = deliveryProofService.verifyOtp(orderId, deliveryAgentId, otp);
