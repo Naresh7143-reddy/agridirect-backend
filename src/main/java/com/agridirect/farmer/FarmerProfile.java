@@ -25,6 +25,12 @@ public class FarmerProfile {
     @Column(name = "land_acres")
     private Double landAcres;
 
+    @Column(name = "farm_lat")
+    private Double farmLat;
+
+    @Column(name = "farm_lng")
+    private Double farmLng;
+
     private boolean verified = false;
 
     @CreationTimestamp
@@ -38,6 +44,8 @@ public class FarmerProfile {
         this.farmName = b.farmName;
         this.location = b.location;
         this.landAcres = b.landAcres;
+        this.farmLat = b.farmLat;
+        this.farmLng = b.farmLng;
         this.verified = b.verified;
     }
 
@@ -46,12 +54,14 @@ public class FarmerProfile {
     public static class Builder {
         private UUID userId;
         private String farmName, location;
-        private Double landAcres;
+        private Double landAcres, farmLat, farmLng;
         private boolean verified = false;
         public Builder userId(UUID v)       { this.userId = v; return this; }
         public Builder farmName(String v)   { this.farmName = v; return this; }
         public Builder location(String v)   { this.location = v; return this; }
         public Builder landAcres(Double v)  { this.landAcres = v; return this; }
+        public Builder farmLat(Double v)    { this.farmLat = v; return this; }
+        public Builder farmLng(Double v)    { this.farmLng = v; return this; }
         public Builder verified(boolean v)  { this.verified = v; return this; }
         public FarmerProfile build()        { return new FarmerProfile(this); }
     }
@@ -62,6 +72,8 @@ public class FarmerProfile {
     public String getFarmName()     { return farmName; }
     public String getLocation()     { return location; }
     public Double getLandAcres()    { return landAcres; }
+    public Double getFarmLat()      { return farmLat; }
+    public Double getFarmLng()      { return farmLng; }
     public boolean isVerified()     { return verified; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
@@ -71,6 +83,8 @@ public class FarmerProfile {
     public void setFarmName(String v)       { this.farmName = v; }
     public void setLocation(String v)       { this.location = v; }
     public void setLandAcres(Double v)      { this.landAcres = v; }
+    public void setFarmLat(Double v)        { this.farmLat = v; }
+    public void setFarmLng(Double v)        { this.farmLng = v; }
     public void setVerified(boolean v)      { this.verified = v; }
     public void setCreatedAt(LocalDateTime v){ this.createdAt = v; }
 }

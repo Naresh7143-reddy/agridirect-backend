@@ -44,31 +44,48 @@ public class ProductService {
      * Eliminates the N+1 problem that was causing 2163ms avg on GET /api/products.
      */
     private List<ProductResponse> buildResponsesBatch(List<Product> products) {
-        if (products.isEmpty()) return List.of();
+        if (products == null || products.isEmpty()) return List.of();
 
         // Collect unique IDs
-        Set<UUID> farmerIds   = products.stream().map(Product::getFarmerId).collect(Collectors.toSet());
+        Set<UUID> farmerIds   = products.stream().filter(p -> p.getFarmerId() != null).map(Product::getFarmerId).collect(Collectors.toSet());
         Set<UUID> categoryIds = products.stream()
                 .filter(p -> p.getCategoryId() != null)
                 .map(Product::getCategoryId).collect(Collectors.toSet());
 
         // 1 query: all users for these farmer IDs
-        Map<UUID, String> farmerNames = userRepository.findAllById(farmerIds).stream()
-                .collect(Collectors.toMap(User::getId, User::getName));
+        Map<UUID, String> farmerNames = new java.util.HashMap<>();
+        if (!farmerIds.isEmpty()) {
+            for (User u : userRepository.findAllById(farmerIds)) {
+                if (u.getId() != null && u.getName() != null) {
+                    farmerNames.put(u.getId(), u.getName());
+                }
+            }
+        }
 
         // 1 query: all farmer profiles for these farmer IDs
-        Map<UUID, String> farmerLocations = farmerRepository.findAllByUserIdIn(farmerIds).stream()
-                .collect(Collectors.toMap(FarmerProfile::getUserId, fp -> fp.getLocation() != null ? fp.getLocation() : ""));
+        Map<UUID, String> farmerLocations = new java.util.HashMap<>();
+        if (!farmerIds.isEmpty()) {
+            for (FarmerProfile fp : farmerRepository.findAllByUserIdIn(farmerIds)) {
+                if (fp.getUserId() != null) {
+                    farmerLocations.put(fp.getUserId(), fp.getLocation() != null ? fp.getLocation() : "");
+                }
+            }
+        }
 
         // 1 query: all categories needed
-        Map<UUID, String> categoryNames = categoryIds.isEmpty() ? Map.of() :
-                categoryRepository.findAllById(categoryIds).stream()
-                        .collect(Collectors.toMap(Category::getId, Category::getName));
+        Map<UUID, String> categoryNames = new java.util.HashMap<>();
+        if (!categoryIds.isEmpty()) {
+            for (Category c : categoryRepository.findAllById(categoryIds)) {
+                if (c.getId() != null && c.getName() != null) {
+                    categoryNames.put(c.getId(), c.getName());
+                }
+            }
+        }
 
         return products.stream().map(p -> toResponse(
                 p,
-                farmerNames.getOrDefault(p.getFarmerId(), "Unknown Farmer"),
-                farmerLocations.get(p.getFarmerId()),
+                p.getFarmerId() != null ? farmerNames.getOrDefault(p.getFarmerId(), "Unknown Farmer") : "Unknown Farmer",
+                p.getFarmerId() != null ? farmerLocations.get(p.getFarmerId()) : null,
                 p.getCategoryId() != null ? categoryNames.get(p.getCategoryId()) : null
         )).collect(Collectors.toList());
     }

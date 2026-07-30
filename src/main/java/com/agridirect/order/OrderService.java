@@ -75,6 +75,8 @@ public class OrderService {
                 .status("PENDING")
                 .totalAmount(total)
                 .deliveryAddress(req.getDeliveryAddress())
+                .deliveryLat(req.getDeliveryLat())
+                .deliveryLng(req.getDeliveryLng())
                 .notes(req.getNotes())
                 .paymentStatus("PENDING")
                 .build());
@@ -300,23 +302,52 @@ public class OrderService {
         dto.setUpdatedAt(order.getUpdatedAt());
         dto.setAssignedAt(order.getUpdatedAt());
 
-        // Buyer contact
-        userRepository.findById(order.getBuyerId()).ifPresent(buyer -> {
-            dto.setBuyerName(buyer.getName());
-            dto.setBuyerPhone(buyer.getPhone());
-        });
-        dto.setDropAddress(order.getDeliveryAddress());
+        // Set Drop Location Coordinates
+        dto.setDropLat(order.getDeliveryLat() != null ? order.getDeliveryLat() : 17.432);
+        dto.setDropLng(order.getDeliveryLng() != null ? order.getDeliveryLng() : 78.407);
 
-        // Farmer contact (first farmer from items)
+        boolean isClaimed = order.getDeliveryAgentId() != null;
+
+        if (isClaimed) {
+            // Include full Buyer details after claim
+            userRepository.findById(order.getBuyerId()).ifPresent(buyer -> {
+                dto.setBuyerName(buyer.getName());
+                dto.setBuyerPhone(buyer.getPhone());
+            });
+            dto.setDropAddress(order.getDeliveryAddress());
+        } else {
+            // Before claim: protect buyer identity & show approximate drop location
+            dto.setBuyerName(null);
+            dto.setBuyerPhone(null);
+            dto.setDropAddress(order.getDeliveryAddress() != null ? order.getDeliveryAddress() : "Delivery Drop Point");
+        }
+
+        // Farmer details
         items.stream().map(OrderItem::getFarmerId).filter(java.util.Objects::nonNull)
                 .findFirst().ifPresent(farmerId -> {
-                    userRepository.findById(farmerId).ifPresent(f -> {
-                        dto.setFarmerName(f.getName());
-                        dto.setFarmerPhone(f.getPhone());
+                    farmerRepository.findByUserId(farmerId).ifPresent(fp -> {
+                        dto.setPickupLat(fp.getFarmLat() != null ? fp.getFarmLat() : 17.398);
+                        dto.setPickupLng(fp.getFarmLng() != null ? fp.getFarmLng() : 78.492);
+                        if (isClaimed) {
+                            dto.setPickupAddress(fp.getLocation() != null ? fp.getLocation() : fp.getFarmName());
+                        } else {
+                            dto.setPickupAddress(fp.getFarmName() != null ? fp.getFarmName() : "Farm Location");
+                        }
                     });
-                    farmerRepository.findByUserId(farmerId).ifPresent(fp ->
-                            dto.setPickupAddress(fp.getLocation() != null ? fp.getLocation() : fp.getFarmName()));
+
+                    if (isClaimed) {
+                        userRepository.findById(farmerId).ifPresent(f -> {
+                            dto.setFarmerName(f.getName());
+                            dto.setFarmerPhone(f.getPhone());
+                        });
+                    } else {
+                        dto.setFarmerName(null);
+                        dto.setFarmerPhone(null);
+                    }
                 });
+
+        if (dto.getPickupLat() == null) dto.setPickupLat(17.398);
+        if (dto.getPickupLng() == null) dto.setPickupLng(78.492);
 
         // Items
         List<DeliveryOrderResponse.ItemSummary> summaries = new ArrayList<>();

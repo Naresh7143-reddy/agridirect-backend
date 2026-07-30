@@ -47,6 +47,8 @@ public class FarmerService {
         if (updates.get("farmName") != null)  profile.setFarmName((String) updates.get("farmName"));
         if (updates.get("location") != null)  profile.setLocation((String) updates.get("location"));
         if (updates.get("landAcres") != null) profile.setLandAcres(((Number) updates.get("landAcres")).doubleValue());
+        if (updates.get("farmLat") != null)   profile.setFarmLat(((Number) updates.get("farmLat")).doubleValue());
+        if (updates.get("farmLng") != null)   profile.setFarmLng(((Number) updates.get("farmLng")).doubleValue());
         return farmerRepository.save(profile);
     }
 

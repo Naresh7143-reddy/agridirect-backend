@@ -27,6 +27,12 @@ public class Order {
     @Column(name = "delivery_address", columnDefinition = "TEXT")
     private String deliveryAddress;
 
+    @Column(name = "delivery_lat")
+    private Double deliveryLat;
+
+    @Column(name = "delivery_lng")
+    private Double deliveryLng;
+
     @Column(name = "delivery_agent_id")
     private UUID deliveryAgentId;
 
@@ -63,6 +69,8 @@ public class Order {
         this.status = b.status != null ? b.status : "PENDING";
         this.totalAmount = b.totalAmount;
         this.deliveryAddress = b.deliveryAddress;
+        this.deliveryLat = b.deliveryLat;
+        this.deliveryLng = b.deliveryLng;
         this.deliveryAgentId = b.deliveryAgentId;
         this.paymentStatus = b.paymentStatus != null ? b.paymentStatus : "PENDING";
         this.razorpayOrderId = b.razorpayOrderId;
@@ -77,12 +85,14 @@ public class Order {
     public static class Builder {
         private UUID buyerId, deliveryAgentId;
         private String status, deliveryAddress, paymentStatus, razorpayOrderId, razorpayPaymentId, notes, deliveryOtp, returnStatus;
-        private Double totalAmount;
+        private Double totalAmount, deliveryLat, deliveryLng;
 
         public Builder buyerId(UUID v)              { this.buyerId = v; return this; }
         public Builder status(String v)             { this.status = v; return this; }
         public Builder totalAmount(Double v)        { this.totalAmount = v; return this; }
         public Builder deliveryAddress(String v)    { this.deliveryAddress = v; return this; }
+        public Builder deliveryLat(Double v)        { this.deliveryLat = v; return this; }
+        public Builder deliveryLng(Double v)        { this.deliveryLng = v; return this; }
         public Builder deliveryAgentId(UUID v)      { this.deliveryAgentId = v; return this; }
         public Builder paymentStatus(String v)      { this.paymentStatus = v; return this; }
         public Builder razorpayOrderId(String v)    { this.razorpayOrderId = v; return this; }
@@ -98,6 +108,8 @@ public class Order {
     public String getStatus()            { return status; }
     public Double getTotalAmount()       { return totalAmount; }
     public String getDeliveryAddress()   { return deliveryAddress; }
+    public Double getDeliveryLat()       { return deliveryLat; }
+    public Double getDeliveryLng()       { return deliveryLng; }
     public UUID getDeliveryAgentId()     { return deliveryAgentId; }
     public String getPaymentStatus()     { return paymentStatus; }
     public String getRazorpayOrderId()   { return razorpayOrderId; }
@@ -113,6 +125,8 @@ public class Order {
     public void setStatus(String v)            { this.status = v; }
     public void setTotalAmount(Double v)       { this.totalAmount = v; }
     public void setDeliveryAddress(String v)   { this.deliveryAddress = v; }
+    public void setDeliveryLat(Double v)       { this.deliveryLat = v; }
+    public void setDeliveryLng(Double v)       { this.deliveryLng = v; }
     public void setDeliveryAgentId(UUID v)     { this.deliveryAgentId = v; }
     public void setPaymentStatus(String v)     { this.paymentStatus = v; }
     public void setRazorpayOrderId(String v)   { this.razorpayOrderId = v; }
