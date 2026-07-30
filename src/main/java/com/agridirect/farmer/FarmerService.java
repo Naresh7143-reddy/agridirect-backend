@@ -8,6 +8,10 @@ import com.agridirect.order.OrderRepository;
 import com.agridirect.product.Product;
 import com.agridirect.product.ProductRepository;
 import com.agridirect.user.UserRepository;
+import com.agridirect.order.SubscriptionRepository;
+import com.agridirect.order.ReturnRequestRepository;
+import com.agridirect.order.Subscription;
+import com.agridirect.order.ReturnRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,8 @@ public class FarmerService {
     @Autowired private OrderRepository orderRepository;
     @Autowired private ProductRepository productRepository;
     @Autowired private BankDetailsRepository bankDetailsRepository;
+    @Autowired private SubscriptionRepository subscriptionRepository;
+    @Autowired private ReturnRequestRepository returnRequestRepository;
 
     public FarmerProfile getProfile(UUID userId) {
         return farmerRepository.findByUserId(userId)
@@ -68,16 +74,24 @@ public class FarmerService {
         double allOrdersValue    = orders.stream()
                 .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount() : 0.0)
                 .sum();
+        long activeSubscriptions = subscriptionRepository.findByFarmerIdOrderByCreatedAtDesc(userId).stream()
+                .filter(s -> "ACTIVE".equalsIgnoreCase(s.getStatus()))
+                .count();
+        long pendingReturns      = returnRequestRepository.findByFarmerIdOrderByCreatedAtDesc(userId).stream()
+                .filter(r -> "PENDING".equalsIgnoreCase(r.getStatus()))
+                .count();
         HashMap<String, Object> map = new HashMap<>();
-        map.put("totalRevenue",    totalRevenue);
-        map.put("totalEarnings",   allOrdersValue);
-        map.put("totalOrders",     totalOrders);
-        map.put("pendingOrders",   pendingOrders);
-        map.put("acceptedOrders",  acceptedOrders);
-        map.put("deliveredOrders", deliveredOrders);
-        map.put("activeProducts",  activeProducts);
-        map.put("totalProducts",   totalProducts);
-        map.put("averageRating",   0.0);
+        map.put("totalRevenue",        totalRevenue);
+        map.put("totalEarnings",       allOrdersValue);
+        map.put("totalOrders",         totalOrders);
+        map.put("pendingOrders",       pendingOrders);
+        map.put("acceptedOrders",      acceptedOrders);
+        map.put("deliveredOrders",     deliveredOrders);
+        map.put("activeProducts",      activeProducts);
+        map.put("totalProducts",       totalProducts);
+        map.put("activeSubscriptions", activeSubscriptions);
+        map.put("pendingReturns",      pendingReturns);
+        map.put("averageRating",       0.0);
         return map;
     }
 

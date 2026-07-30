@@ -46,48 +46,85 @@ public class ProductService {
     private List<ProductResponse> buildResponsesBatch(List<Product> products) {
         if (products == null || products.isEmpty()) return List.of();
 
-        // Collect unique IDs
-        Set<UUID> farmerIds   = products.stream().filter(p -> p.getFarmerId() != null).map(Product::getFarmerId).collect(Collectors.toSet());
-        Set<UUID> categoryIds = products.stream()
-                .filter(p -> p.getCategoryId() != null)
-                .map(Product::getCategoryId).collect(Collectors.toSet());
+        try {
+            // Collect unique IDs
+            Set<UUID> farmerIds = products.stream()
+                    .filter(p -> p != null && p.getFarmerId() != null)
+                    .map(Product::getFarmerId)
+                    .collect(Collectors.toSet());
+            Set<UUID> categoryIds = products.stream()
+                    .filter(p -> p != null && p.getCategoryId() != null)
+                    .map(Product::getCategoryId)
+                    .collect(Collectors.toSet());
 
-        // 1 query: all users for these farmer IDs
-        Map<UUID, String> farmerNames = new java.util.HashMap<>();
-        if (!farmerIds.isEmpty()) {
-            for (User u : userRepository.findAllById(farmerIds)) {
-                if (u.getId() != null && u.getName() != null) {
-                    farmerNames.put(u.getId(), u.getName());
-                }
+            // 1 query: all users for these farmer IDs
+            Map<UUID, String> farmerNames = new java.util.HashMap<>();
+            if (!farmerIds.isEmpty()) {
+                try {
+                    for (User u : userRepository.findAllById(farmerIds)) {
+                        if (u != null && u.getId() != null && u.getName() != null) {
+                            farmerNames.put(u.getId(), u.getName());
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
-        }
 
-        // 1 query: all farmer profiles for these farmer IDs
-        Map<UUID, String> farmerLocations = new java.util.HashMap<>();
-        if (!farmerIds.isEmpty()) {
-            for (FarmerProfile fp : farmerRepository.findAllByUserIdIn(farmerIds)) {
-                if (fp.getUserId() != null) {
-                    farmerLocations.put(fp.getUserId(), fp.getLocation() != null ? fp.getLocation() : "");
-                }
+            // 1 query: all farmer profiles for these farmer IDs
+            Map<UUID, String> farmerLocations = new java.util.HashMap<>();
+            if (!farmerIds.isEmpty()) {
+                try {
+                    List<FarmerProfile> profiles = farmerRepository.findAllByUserIdIn(farmerIds);
+                    if (profiles != null) {
+                        for (FarmerProfile fp : profiles) {
+                            if (fp != null && fp.getUserId() != null) {
+                                farmerLocations.put(fp.getUserId(), fp.getLocation() != null ? fp.getLocation() : "");
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
-        }
 
-        // 1 query: all categories needed
-        Map<UUID, String> categoryNames = new java.util.HashMap<>();
-        if (!categoryIds.isEmpty()) {
-            for (Category c : categoryRepository.findAllById(categoryIds)) {
-                if (c.getId() != null && c.getName() != null) {
-                    categoryNames.put(c.getId(), c.getName());
-                }
+            // 1 query: all categories needed
+            Map<UUID, String> categoryNames = new java.util.HashMap<>();
+            if (!categoryIds.isEmpty()) {
+                try {
+                    for (Category c : categoryRepository.findAllById(categoryIds)) {
+                        if (c != null && c.getId() != null && c.getName() != null) {
+                            categoryNames.put(c.getId(), c.getName());
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
-        }
 
-        return products.stream().map(p -> toResponse(
-                p,
-                p.getFarmerId() != null ? farmerNames.getOrDefault(p.getFarmerId(), "Unknown Farmer") : "Unknown Farmer",
-                p.getFarmerId() != null ? farmerLocations.get(p.getFarmerId()) : null,
-                p.getCategoryId() != null ? categoryNames.get(p.getCategoryId()) : null
-        )).collect(Collectors.toList());
+            return products.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(p -> {
+                        try {
+                            return toResponse(
+                                    p,
+                                    p.getFarmerId() != null ? farmerNames.getOrDefault(p.getFarmerId(), "Unknown Farmer") : "Unknown Farmer",
+                                    p.getFarmerId() != null ? farmerLocations.get(p.getFarmerId()) : null,
+                                    p.getCategoryId() != null ? categoryNames.get(p.getCategoryId()) : null
+                            );
+                        } catch (Exception e) {
+                            return buildResponseSafe(p);
+                        }
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return products.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(this::buildResponseSafe)
+                    .collect(Collectors.toList());
+        }
+    }
+
+    private ProductResponse buildResponseSafe(Product p) {
+        try {
+            return buildResponse(p);
+        } catch (Exception e) {
+            return toResponse(p, "Unknown Farmer", null, null);
+        }
     }
 
     private ProductResponse toResponse(Product p, String farmerName, String farmerLocation, String categoryName) {
