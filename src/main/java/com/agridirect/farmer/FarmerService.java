@@ -74,12 +74,19 @@ public class FarmerService {
         double allOrdersValue    = orders.stream()
                 .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount() : 0.0)
                 .sum();
-        long activeSubscriptions = subscriptionRepository.findByFarmerIdOrderByCreatedAtDesc(userId).stream()
-                .filter(s -> "ACTIVE".equalsIgnoreCase(s.getStatus()))
-                .count();
-        long pendingReturns      = returnRequestRepository.findByFarmerIdOrderByCreatedAtDesc(userId).stream()
-                .filter(r -> "PENDING".equalsIgnoreCase(r.getStatus()))
-                .count();
+        long activeSubscriptions = 0;
+        try {
+            activeSubscriptions = subscriptionRepository.findByFarmerIdOrderByCreatedAtDesc(userId).stream()
+                    .filter(s -> "ACTIVE".equalsIgnoreCase(s.getStatus()))
+                    .count();
+        } catch (Exception ignored) {}
+
+        long pendingReturns = 0;
+        try {
+            pendingReturns = returnRequestRepository.findByFarmerIdOrderByCreatedAtDesc(userId).stream()
+                    .filter(r -> "PENDING".equalsIgnoreCase(r.getStatus()))
+                    .count();
+        } catch (Exception ignored) {}
         HashMap<String, Object> map = new HashMap<>();
         map.put("totalRevenue",        totalRevenue);
         map.put("totalEarnings",       allOrdersValue);

@@ -12,6 +12,7 @@ import com.agridirect.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class ProductService {
 
     @Autowired private ProductRepository productRepository;
@@ -128,6 +130,13 @@ public class ProductService {
     }
 
     private ProductResponse toResponse(Product p, String farmerName, String farmerLocation, String categoryName) {
+        List<String> images = null;
+        try {
+            images = p.getImageUrls() != null ? new java.util.ArrayList<>(p.getImageUrls()) : List.of();
+        } catch (Exception ignored) {
+            images = List.of();
+        }
+
         return ProductResponse.builder()
                 .id(p.getId())
                 .farmerId(p.getFarmerId())
@@ -137,7 +146,7 @@ public class ProductService {
                 .price(p.getPrice())
                 .unit(p.getUnit())
                 .stockQuantity(p.getStockQuantity())
-                .imageUrls(p.getImageUrls())
+                .imageUrls(images)
                 .isAvailable(p.isAvailable())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
@@ -172,6 +181,7 @@ public class ProductService {
         return buildResponsesBatch(productRepository.findByFarmerId(farmerId));
     }
 
+    @Transactional
     public ProductResponse createProduct(UUID farmerId, ProductRequest req) {
         if (req.getCategoryId() != null && !categoryRepository.existsById(req.getCategoryId())) {
             throw new ApiException("Category not found", HttpStatus.BAD_REQUEST);
@@ -190,6 +200,7 @@ public class ProductService {
         return buildResponse(productRepository.save(product));
     }
 
+    @Transactional
     public ProductResponse updateProduct(UUID farmerId, UUID productId, ProductRequest req) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException("Product not found", HttpStatus.NOT_FOUND));
@@ -209,6 +220,7 @@ public class ProductService {
         return buildResponse(productRepository.save(product));
     }
 
+    @Transactional
     public void deleteProduct(UUID farmerId, UUID productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException("Product not found", HttpStatus.NOT_FOUND));
@@ -219,6 +231,7 @@ public class ProductService {
         productRepository.save(product);
     }
 
+    @Transactional
     public void updateStock(UUID productId, Double quantity) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException("Product not found", HttpStatus.NOT_FOUND));
