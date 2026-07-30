@@ -158,7 +158,11 @@ public class ProductService {
     }
 
     public List<ProductResponse> getAllProducts() {
-        return buildResponsesBatch(productRepository.findByIsAvailableTrue());
+        List<Product> products = productRepository.findByIsAvailableTrue();
+        if (products == null || products.isEmpty()) {
+            products = productRepository.findAll();
+        }
+        return buildResponsesBatch(products);
     }
 
     public ProductResponse getProductById(UUID id) {

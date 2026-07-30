@@ -72,13 +72,14 @@ public class Product {
         this.stockQuantity = b.stockQuantity;
         this.imageUrls = b.imageUrls;
         this.isAvailable = b.isAvailable;
+        this.approvalStatus = b.approvalStatus != null ? b.approvalStatus : "APPROVED";
     }
 
     public static Builder builder() { return new Builder(); }
 
     public static class Builder {
         private UUID farmerId, categoryId;
-        private String name, description, unit;
+        private String name, description, unit, approvalStatus = "APPROVED";
         private Double price, stockQuantity;
         private List<String> imageUrls;
         private boolean isAvailable = true;
@@ -92,6 +93,7 @@ public class Product {
         public Builder stockQuantity(Double v) { this.stockQuantity = v; return this; }
         public Builder imageUrls(List<String> v){ this.imageUrls = v; return this; }
         public Builder isAvailable(boolean v)  { this.isAvailable = v; return this; }
+        public Builder approvalStatus(String v){ this.approvalStatus = v; return this; }
         public Product build()                 { return new Product(this); }
     }
 
