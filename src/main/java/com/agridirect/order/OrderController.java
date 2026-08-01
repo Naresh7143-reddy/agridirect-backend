@@ -92,7 +92,7 @@ public class OrderController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Order>> assignDelivery(@PathVariable UUID id,
                                                               @RequestBody Map<String, String> body) {
-        UUID agentId = UUID.fromString(body.get("agentId"));
+        UUID agentId = UUID.fromString(body.get("deliveryPartnerId"));
         return ResponseEntity.ok(ApiResponse.success(orderService.assignDeliveryAgent(id, agentId)));
     }
 }

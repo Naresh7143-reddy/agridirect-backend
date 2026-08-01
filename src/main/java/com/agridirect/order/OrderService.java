@@ -230,6 +230,11 @@ public class OrderService {
         return orderRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    /** Persists an order that was modified externally (e.g. by DeliveryService). */
+    public Order saveOrder(Order order) {
+        return orderRepository.save(order);
+    }
+
     /**
      * Builds an enriched OrderDetailResponse for buyers and farmers,
      * joining in buyer/farmer/agent contact info.

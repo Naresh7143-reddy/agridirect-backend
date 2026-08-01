@@ -14,6 +14,7 @@ import java.util.UUID;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
+    // Aligned with Product.isAvailable (column: is_available)
     List<Product> findByIsAvailableTrue();
 
     List<Product> findByFarmerIdAndIsAvailableTrue(UUID farmerId);
