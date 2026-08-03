@@ -1,0 +1,61 @@
+@baseUrl = http://localhost:8090/api
+
+### ---------------------------
+### 1. PUBLIC APIs
+### ---------------------------
+
+### Get All Categories
+GET {{baseUrl}}/categories
+
+### Get All Products
+GET {{baseUrl}}/products
+
+### ---------------------------
+### 2. AUTHENTICATION
+### ---------------------------
+
+### Register a New User
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "phone": "9876543210",
+  "password": "Password123!",
+  "role": "BUYER"
+}
+
+### Login User
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "phone": "9876543210",
+  "password": "Password123!"
+}
+
+### ---------------------------
+### 3. PROTECTED APIs (Require Token)
+### ---------------------------
+# Set the token variable using the login response
+@token = {{login.response.body.data.token}}
+
+### Get Current User Profile
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### Get User Orders
+GET {{baseUrl}}/orders
+Authorization: Bearer {{token}}
+
+### Add Item to Cart (Assuming Cart Endpoint)
+POST {{baseUrl}}/cart/add
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": "930749c0-39fb-4e00-9963-c24013297392",
+  "quantity": 1
+}

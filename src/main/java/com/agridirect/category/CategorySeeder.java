@@ -30,9 +30,13 @@ public class CategorySeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (categoryRepository.count() > 0) return;
-        for (String name : DEFAULT_CATEGORIES) {
-            categoryRepository.save(Category.builder().name(name).isActive(true).build());
+        try {
+            if (categoryRepository.count() > 0) return;
+            for (String name : DEFAULT_CATEGORIES) {
+                categoryRepository.save(Category.builder().name(name).isActive(true).build());
+            }
+        } catch (Exception e) {
+            System.err.println("WARN: CategorySeeder skipped — DB not available: " + e.getMessage());
         }
     }
 }

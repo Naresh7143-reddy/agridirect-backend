@@ -9,14 +9,25 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.Mockito.when;
+
 @DisplayName("Route Optimization Service Tests")
 class RouteOptimizationServiceTest {
     
+    @Mock
+    private MapsService mapsService;
+    
+    @InjectMocks
     private RouteOptimizationService routeOptimizationService;
     
     @BeforeEach
     void setUp() {
-        routeOptimizationService = new RouteOptimizationService();
+        MockitoAnnotations.openMocks(this);
+        when(mapsService.getHaversineDistance(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(5.0);
     }
     
     @Test

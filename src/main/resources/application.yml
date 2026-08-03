@@ -10,6 +10,10 @@ spring:
       connection-timeout: 20000
       maximum-pool-size: 5
       minimum-idle: 1
+      idle-timeout: 60000
+      max-lifetime: 120000
+      keepalive-time: 30000
+      connection-test-query: SELECT 1
       initialization-fail-timeout: 0
   jpa:
     hibernate:

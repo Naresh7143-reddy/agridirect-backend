@@ -122,4 +122,21 @@ public class DeliveryController {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(ApiResponse.success(deliveryService.getEarnings(UUID.fromString(userId))));
     }
+    @PostMapping("/estimate")
+    public ResponseEntity<ApiResponse<com.agridirect.delivery.dto.DeliveryEstimateResponseDTO>> estimateDelivery(
+            @Valid @RequestBody com.agridirect.delivery.dto.DeliveryEstimateRequestDTO request) {
+        return ResponseEntity.ok(ApiResponse.success(deliveryService.estimateDelivery(request)));
+    }
+
+    @GetMapping("/availability")
+    public ResponseEntity<ApiResponse<DeliveryMatchingService.DeliveryAvailabilityStatus>> checkAvailability(
+            @RequestParam Double latitude, @RequestParam Double longitude) {
+        return ResponseEntity.ok(ApiResponse.success(deliveryService.checkDeliveryAvailability(latitude, longitude)));
+    }
+
+    @GetMapping("/track/{orderId}")
+    public ResponseEntity<ApiResponse<com.agridirect.delivery.dto.DeliveryTrackingDTO>> getDeliveryTracking(
+            @PathVariable String orderId) {
+        return ResponseEntity.ok(ApiResponse.success(deliveryService.getDeliveryTracking(orderId)));
+    }
 }

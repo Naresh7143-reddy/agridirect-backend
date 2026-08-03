@@ -5,6 +5,7 @@ import com.agridirect.delivery.dto.DeliveryEstimateResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -12,10 +13,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class DeliveryCostCalculatorTest {
     
     private DeliveryCostCalculator calculator;
-    
+
     @BeforeEach
     void setUp() {
         calculator = new DeliveryCostCalculator();
+        ReflectionTestUtils.setField(calculator, "baseCost", 50.0);
+        ReflectionTestUtils.setField(calculator, "perKmCost", 8.0);
+        ReflectionTestUtils.setField(calculator, "perMinuteCost", 1.0);
+        ReflectionTestUtils.setField(calculator, "minDeliveryRadius", 0.5);
+        ReflectionTestUtils.setField(calculator, "maxDeliveryRadius", 25.0);
     }
     
     @Test
