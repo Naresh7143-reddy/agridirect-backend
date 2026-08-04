@@ -36,7 +36,7 @@ public class ProductController {
     }
 
     @GetMapping("/api/products/search")
-    public ResponseEntity<ApiResponse<List<ProductResponse>>> search(@RequestParam("q") String query) {
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> search(@RequestParam(value = "q", required = false, defaultValue = "") String query) {
         return ResponseEntity.ok(ApiResponse.success(productService.searchProducts(query)));
     }
 

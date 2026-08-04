@@ -5,6 +5,8 @@ import com.agridirect.order.Order;
 import com.agridirect.order.OrderRepository;
 import com.agridirect.product.Product;
 import com.agridirect.product.ProductRepository;
+import com.agridirect.product.ProductService;
+import com.agridirect.product.dto.ProductResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class BuyerService {
 
     @Autowired private BuyerRepository buyerRepository;
@@ -24,6 +27,7 @@ public class BuyerService {
     @Autowired private WishlistRepository wishlistRepository;
     @Autowired private OrderRepository orderRepository;
     @Autowired private ProductRepository productRepository;
+    @Autowired private ProductService productService;
 
     public BuyerProfile getProfile(UUID userId) {
         return buyerRepository.findByUserId(userId)
@@ -154,7 +158,10 @@ public class BuyerService {
             entry.put("id", w.getId());
             entry.put("buyerId", w.getBuyerId());
             entry.put("addedAt", w.getAddedAt());
-            Product product = productRepository.findById(w.getProductId()).orElse(null);
+            ProductResponse product = null;
+            try {
+                product = productService.getProductById(w.getProductId());
+            } catch (Exception ignored) {}
             entry.put("product", product);
             return entry;
         }).collect(Collectors.toList());

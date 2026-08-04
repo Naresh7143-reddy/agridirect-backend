@@ -1,20 +1,22 @@
 package com.agridirect.category;
 
 import com.agridirect.common.exception.ApiException;
-import com.agridirect.product.Product;
-import com.agridirect.product.ProductRepository;
+import com.agridirect.product.ProductService;
+import com.agridirect.product.dto.ProductResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class CategoryService {
 
     @Autowired private CategoryRepository categoryRepository;
-    @Autowired private ProductRepository productRepository;
+    @Autowired private ProductService productService;
 
     public List<Category> getAllCategories() {
         return categoryRepository.findByIsActiveTrue();
@@ -25,9 +27,9 @@ public class CategoryService {
                 .orElseThrow(() -> new ApiException("Category not found", HttpStatus.NOT_FOUND));
     }
 
-    public List<Product> getCategoryProducts(UUID id) {
+    public List<ProductResponse> getCategoryProducts(UUID id) {
         getCategoryById(id);
-        return productRepository.findByCategoryIdAndIsAvailableTrueAndIsDeletedFalse(id);
+        return productService.getProductsByCategory(id);
     }
 
     public Category updateCategory(UUID id, String name, String imageUrl, Boolean isActive) {

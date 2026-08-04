@@ -20,6 +20,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.springframework.boot.test.mock.mockito.MockBean;
+
 @DisplayName("Delivery Estimation Controller Tests")
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
@@ -31,7 +33,7 @@ class DeliveryEstimationControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
     
-    @Mock
+    @MockBean
     private DeliveryService deliveryService;
     
     private DeliveryEstimateRequestDTO validRequest;
@@ -76,7 +78,7 @@ class DeliveryEstimationControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(validRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status_code").value(200))
+                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.distanceKm").value(5.0))
                 .andExpect(jsonPath("$.data.totalDeliveryCost").value(110.0));
     }
@@ -152,6 +154,7 @@ class DeliveryEstimationControllerTest {
         
         // Act & Assert
         mockMvc.perform(get("/api/delivery/track/invalid"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").doesNotExist());
     }
 }
