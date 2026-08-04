@@ -157,7 +157,7 @@ public class AdminController {
 
     @GetMapping("/products/pending")
     public ResponseEntity<ApiResponse<List<Product>>> getPendingProducts() {
-        return ResponseEntity.ok(ApiResponse.success(productRepository.findByApprovalStatus("PENDING")));
+        return ResponseEntity.ok(ApiResponse.success(productRepository.findByApprovalStatusAndIsDeletedFalse("PENDING")));
     }
 
     @PutMapping("/products/{productId}/approve")
@@ -234,7 +234,7 @@ public class AdminController {
             }
             case "products" -> {
                 report.put("totalProducts", productRepository.count());
-                report.put("availableProducts", productRepository.findByIsAvailableTrue().size());
+                report.put("availableProducts", productRepository.findByIsAvailableTrueAndIsDeletedFalse().size());
             }
             case "deliveries" -> {
                 report.put("totalDelivered", orderRepository.findByStatus("DELIVERED").size());

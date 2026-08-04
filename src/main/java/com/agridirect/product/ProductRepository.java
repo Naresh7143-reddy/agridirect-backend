@@ -15,21 +15,21 @@ import java.util.UUID;
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     // Aligned with Product.isAvailable (column: is_available)
-    List<Product> findByIsAvailableTrue();
+    List<Product> findByIsAvailableTrueAndIsDeletedFalse();
 
-    List<Product> findByFarmerIdAndIsAvailableTrue(UUID farmerId);
+    List<Product> findByFarmerIdAndIsAvailableTrueAndIsDeletedFalse(UUID farmerId);
 
-    List<Product> findByFarmerId(UUID farmerId);
+    List<Product> findByFarmerIdAndIsDeletedFalse(UUID farmerId);
 
-    List<Product> findByCategoryIdAndIsAvailableTrue(UUID categoryId);
+    List<Product> findByCategoryIdAndIsAvailableTrueAndIsDeletedFalse(UUID categoryId);
 
-    List<Product> findByNameContainingIgnoreCaseAndIsAvailableTrue(String name);
+    List<Product> findByNameContainingIgnoreCaseAndIsAvailableTrueAndIsDeletedFalse(String name);
 
-    long countByFarmerIdAndIsAvailableTrue(UUID farmerId);
+    long countByFarmerIdAndIsAvailableTrueAndIsDeletedFalse(UUID farmerId);
 
-    long countByFarmerId(UUID farmerId);
+    long countByFarmerIdAndIsDeletedFalse(UUID farmerId);
 
-    List<Product> findByApprovalStatus(String approvalStatus);
+    List<Product> findByApprovalStatusAndIsDeletedFalse(String approvalStatus);
 
     /** Locks the product row for the duration of the transaction (prevents overselling). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

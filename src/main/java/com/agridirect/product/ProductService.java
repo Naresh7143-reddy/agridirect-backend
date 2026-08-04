@@ -158,10 +158,7 @@ public class ProductService {
     }
 
     public List<ProductResponse> getAllProducts() {
-        List<Product> products = productRepository.findByIsAvailableTrue();
-        if (products == null || products.isEmpty()) {
-            products = productRepository.findAll();
-        }
+        List<Product> products = productRepository.findByIsAvailableTrueAndIsDeletedFalse();
         return buildResponsesBatch(products);
     }
 
@@ -172,17 +169,17 @@ public class ProductService {
     }
 
     public List<ProductResponse> getProductsByCategory(UUID categoryId) {
-        return buildResponsesBatch(productRepository.findByCategoryIdAndIsAvailableTrue(categoryId));
+        return buildResponsesBatch(productRepository.findByCategoryIdAndIsAvailableTrueAndIsDeletedFalse(categoryId));
     }
 
     public List<ProductResponse> searchProducts(String query) {
         // Strip null bytes and control chars — prevents PostgreSQL UTF8 encoding errors
         String safe = query == null ? "" : query.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "").trim();
-        return buildResponsesBatch(productRepository.findByNameContainingIgnoreCaseAndIsAvailableTrue(safe));
+        return buildResponsesBatch(productRepository.findByNameContainingIgnoreCaseAndIsAvailableTrueAndIsDeletedFalse(safe));
     }
 
     public List<ProductResponse> getMyListings(UUID farmerId) {
-        return buildResponsesBatch(productRepository.findByFarmerId(farmerId));
+        return buildResponsesBatch(productRepository.findByFarmerIdAndIsDeletedFalse(farmerId));
     }
 
     @Transactional
@@ -231,6 +228,7 @@ public class ProductService {
         if (!product.getFarmerId().equals(farmerId)) {
             throw new ApiException("Not your product", HttpStatus.FORBIDDEN);
         }
+        product.setDeleted(true);
         product.setAvailable(false);
         productRepository.save(product);
     }

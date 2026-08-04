@@ -49,6 +49,9 @@ public class Product {
     @Column(name = "is_available")
     private boolean isAvailable = true;
 
+    @Column(name = "is_deleted")
+    private boolean isDeleted = false;
+
     @Column(name = "approval_status")
     private String approvalStatus = "APPROVED";
 
@@ -72,6 +75,7 @@ public class Product {
         this.stockQuantity = b.stockQuantity;
         this.imageUrls = b.imageUrls;
         this.isAvailable = b.isAvailable;
+        this.isDeleted = b.isDeleted;
         this.approvalStatus = b.approvalStatus != null ? b.approvalStatus : "APPROVED";
     }
 
@@ -83,6 +87,7 @@ public class Product {
         private Double price, stockQuantity;
         private List<String> imageUrls;
         private boolean isAvailable = true;
+        private boolean isDeleted = false;
 
         public Builder farmerId(UUID v)        { this.farmerId = v; return this; }
         public Builder categoryId(UUID v)      { this.categoryId = v; return this; }
@@ -93,6 +98,7 @@ public class Product {
         public Builder stockQuantity(Double v) { this.stockQuantity = v; return this; }
         public Builder imageUrls(List<String> v){ this.imageUrls = v; return this; }
         public Builder isAvailable(boolean v)  { this.isAvailable = v; return this; }
+        public Builder isDeleted(boolean v)    { this.isDeleted = v; return this; }
         public Builder approvalStatus(String v){ this.approvalStatus = v; return this; }
         public Product build()                 { return new Product(this); }
     }
@@ -107,6 +113,7 @@ public class Product {
     public Double getStockQuantity() { return stockQuantity; }
     public List<String> getImageUrls(){ return imageUrls; }
     public boolean isAvailable()     { return isAvailable; }
+    public boolean isDeleted()       { return isDeleted; }
     public String getApprovalStatus(){ return approvalStatus; }
     public LocalDateTime getCreatedAt(){ return createdAt; }
     public LocalDateTime getUpdatedAt(){ return updatedAt; }
@@ -121,6 +128,7 @@ public class Product {
     public void setStockQuantity(Double v) { this.stockQuantity = v; }
     public void setImageUrls(List<String> v){ this.imageUrls = v; }
     public void setAvailable(boolean v)    { this.isAvailable = v; }
+    public void setDeleted(boolean v)      { this.isDeleted = v; }
     public void setApprovalStatus(String v){ this.approvalStatus = v; }
     public void setCreatedAt(LocalDateTime v){ this.createdAt = v; }
     public void setUpdatedAt(LocalDateTime v){ this.updatedAt = v; }

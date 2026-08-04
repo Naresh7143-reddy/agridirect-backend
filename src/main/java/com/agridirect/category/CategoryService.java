@@ -27,7 +27,7 @@ public class CategoryService {
 
     public List<Product> getCategoryProducts(UUID id) {
         getCategoryById(id);
-        return productRepository.findByCategoryIdAndIsAvailableTrue(id);
+        return productRepository.findByCategoryIdAndIsAvailableTrueAndIsDeletedFalse(id);
     }
 
     public Category updateCategory(UUID id, String name, String imageUrl, Boolean isActive) {

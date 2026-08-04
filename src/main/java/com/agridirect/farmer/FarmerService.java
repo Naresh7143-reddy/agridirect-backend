@@ -41,7 +41,7 @@ public class FarmerService {
     /** Builds the structured response DTO the mobile app expects (see FarmerProfileResponse). */
     public FarmerProfileResponse getProfileResponse(UUID userId) {
         FarmerProfile profile = getProfile(userId);
-        long totalProducts = productRepository.findByFarmerId(userId).size();
+        long totalProducts = productRepository.findByFarmerIdAndIsDeletedFalse(userId).size();
         long totalSales = orderItemRepository.findByFarmerId(userId).stream()
                 .mapToLong(i -> i.getQuantity() != null ? i.getQuantity().longValue() : 0L)
                 .sum();
@@ -61,8 +61,8 @@ public class FarmerService {
     public Map<String, Object> getDashboard(UUID userId) {
         List<Order> orders       = orderRepository.findByFarmerId(userId);
         List<OrderItem> items    = orderItemRepository.findByFarmerId(userId);
-        long activeProducts      = productRepository.countByFarmerIdAndIsAvailableTrue(userId);
-        long totalProducts       = productRepository.countByFarmerId(userId);
+        long activeProducts      = productRepository.countByFarmerIdAndIsAvailableTrueAndIsDeletedFalse(userId);
+        long totalProducts       = productRepository.countByFarmerIdAndIsDeletedFalse(userId);
         long totalOrders         = orders.size();
         long pendingOrders       = orders.stream().filter(o -> "PENDING".equalsIgnoreCase(o.getStatus())).count();
         long acceptedOrders      = orders.stream().filter(o -> "ACCEPTED".equalsIgnoreCase(o.getStatus())).count();
