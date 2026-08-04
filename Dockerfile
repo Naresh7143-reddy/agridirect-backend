@@ -3,7 +3,9 @@ WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -q
 COPY src ./src
-RUN mvn clean package -Dmaven.test.skip=true -q
+RUN mvn package -Dmaven.test.skip=true -q \
+    -Daether.connector.http.retryHandler.count=3 \
+    -Daether.connector.http.retryHandler.requestSentEnabled=true
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
