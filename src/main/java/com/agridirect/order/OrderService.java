@@ -307,32 +307,32 @@ public class OrderService {
         dto.setUpdatedAt(order.getUpdatedAt());
         dto.setAssignedAt(order.getUpdatedAt());
 
-        // Set Drop Location Coordinates
-        dto.setDropLat(order.getDeliveryLat() != null ? order.getDeliveryLat() : 17.432);
-        dto.setDropLng(order.getDeliveryLng() != null ? order.getDeliveryLng() : 78.407);
+        // Set Drop Location Coordinates from order deliveryLat / deliveryLng
+        dto.setDropLat(order.getDeliveryLat());
+        dto.setDropLng(order.getDeliveryLng());
 
         boolean isClaimed = order.getDeliveryAgentId() != null;
 
         if (isClaimed) {
-            // Include full Buyer details after claim
+            // Include full Buyer details ONLY AFTER claim / accept
             userRepository.findById(order.getBuyerId()).ifPresent(buyer -> {
                 dto.setBuyerName(buyer.getName());
                 dto.setBuyerPhone(buyer.getPhone());
             });
             dto.setDropAddress(order.getDeliveryAddress());
         } else {
-            // Before claim: protect buyer identity & show approximate drop location
+            // Before claim / accept: protect buyer identity & show area drop location
             dto.setBuyerName(null);
             dto.setBuyerPhone(null);
-            dto.setDropAddress(order.getDeliveryAddress() != null ? order.getDeliveryAddress() : "Delivery Drop Point");
+            dto.setDropAddress(order.getDeliveryAddress() != null ? order.getDeliveryAddress() : "Delivery Drop Area");
         }
 
-        // Farmer details
+        // Farmer details & pickup coordinates
         items.stream().map(OrderItem::getFarmerId).filter(java.util.Objects::nonNull)
                 .findFirst().ifPresent(farmerId -> {
                     farmerRepository.findByUserId(farmerId).ifPresent(fp -> {
-                        dto.setPickupLat(fp.getFarmLat() != null ? fp.getFarmLat() : 17.398);
-                        dto.setPickupLng(fp.getFarmLng() != null ? fp.getFarmLng() : 78.492);
+                        dto.setPickupLat(fp.getFarmLat());
+                        dto.setPickupLng(fp.getFarmLng());
                         if (isClaimed) {
                             dto.setPickupAddress(fp.getLocation() != null ? fp.getLocation() : fp.getFarmName());
                         } else {
@@ -341,6 +341,7 @@ public class OrderService {
                     });
 
                     if (isClaimed) {
+                        // Include full Farmer details ONLY AFTER claim / accept
                         userRepository.findById(farmerId).ifPresent(f -> {
                             dto.setFarmerName(f.getName());
                             dto.setFarmerPhone(f.getPhone());
@@ -350,9 +351,6 @@ public class OrderService {
                         dto.setFarmerPhone(null);
                     }
                 });
-
-        if (dto.getPickupLat() == null) dto.setPickupLat(17.398);
-        if (dto.getPickupLng() == null) dto.setPickupLng(78.492);
 
         // Items
         List<DeliveryOrderResponse.ItemSummary> summaries = new ArrayList<>();
