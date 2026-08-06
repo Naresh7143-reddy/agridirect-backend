@@ -3,7 +3,9 @@ package com.agridirect.delivery;
 import com.agridirect.common.exception.ApiException;
 import com.agridirect.delivery.dto.*;
 import com.agridirect.order.Order;
+import com.agridirect.order.OrderRepository;
 import com.agridirect.order.OrderService;
+import com.agridirect.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +51,12 @@ public class DeliveryService {
     
     @Autowired
     private DeliveryTrackingRepository deliveryTrackingRepository;
+    
+    @Autowired
+    private OrderRepository orderRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
     
     /**
      * Estimate delivery cost and time for an order
@@ -350,11 +358,29 @@ public class DeliveryService {
     }
 
     /**
-     * Update partner location and broadcast
+     * Update partner location and broadcast to active order SSE
      */
     public void updateLocationAndBroadcast(java.util.UUID partnerId, Double latitude, Double longitude) {
         updatePartnerLocation(partnerId.toString(), latitude, longitude);
         logger.info("Updated location for partner {} to ({},{})", partnerId, latitude, longitude);
+        
+        // Broadcast to any active orders for this partner
+        List<Order> activeOrders = orderRepository.findByDeliveryAgentIdAndStatusNot(partnerId, "DELIVERED");
+        for (Order order : activeOrders) {
+            try {
+                com.agridirect.order.OrderTrackingController.broadcastLocation(
+                        order.getId(),
+                        partnerId,
+                        latitude,
+                        longitude,
+                        order.getStatus(),
+                        orderRepository,
+                        deliveryPartnerRepository,
+                        userRepository);
+            } catch (Exception e) {
+                logger.warn("Failed to broadcast location for order {}: {}", order.getId(), e.getMessage());
+            }
+        }
     }
 
     /**
