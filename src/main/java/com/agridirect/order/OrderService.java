@@ -69,7 +69,8 @@ public class OrderService {
             total += product.getPrice() * item.getQuantity();
         }
 
-        // 3 & 4. Build and save order
+        // 3 & 4. Build and save order with a random 6-digit delivery OTP
+        String generatedOtp = String.format("%06d", new java.util.Random().nextInt(1000000));
         Order order = orderRepository.save(Order.builder()
                 .buyerId(buyerId)
                 .status("PENDING")
@@ -78,6 +79,7 @@ public class OrderService {
                 .deliveryLat(req.getDeliveryLat())
                 .deliveryLng(req.getDeliveryLng())
                 .notes(req.getNotes())
+                .deliveryOtp(generatedOtp)
                 .paymentStatus("PENDING")
                 .build());
 
@@ -114,8 +116,13 @@ public class OrderService {
     }
 
     public Order getOrderById(UUID orderId) {
-        return orderRepository.findById(orderId)
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ApiException("Order not found", HttpStatus.NOT_FOUND));
+        if (order.getDeliveryOtp() == null || order.getDeliveryOtp().trim().isEmpty()) {
+            order.setDeliveryOtp(String.format("%06d", new java.util.Random().nextInt(1000000)));
+            order = orderRepository.save(order);
+        }
+        return order;
     }
 
     public List<Order> getBuyerOrders(UUID buyerId) {
@@ -251,6 +258,7 @@ public class OrderService {
         dto.setTotalAmount(order.getTotalAmount());
         dto.setDeliveryAddress(order.getDeliveryAddress());
         dto.setNotes(order.getNotes());
+        dto.setDeliveryOtp(order.getDeliveryOtp());
         dto.setCreatedAt(order.getCreatedAt());
         dto.setUpdatedAt(order.getUpdatedAt());
         dto.setItems(items);
@@ -302,7 +310,8 @@ public class OrderService {
         dto.setOrderNumber(order.getId().toString().substring(0, 8).toUpperCase());
         dto.setStatus(DeliveryOrderResponse.mapStatus(order.getStatus()));
         dto.setTotalAmount(order.getTotalAmount());
-        dto.setDeliveryFee(order.getTotalAmount() != null ? Math.round(order.getTotalAmount() * 0.05 * 100.0) / 100.0 : 0.0);
+        double rawFee = order.getTotalAmount() != null ? Math.round(order.getTotalAmount() * 0.08 * 100.0) / 100.0 : 30.0;
+        dto.setDeliveryFee(Math.max(30.0, rawFee));
         dto.setCreatedAt(order.getCreatedAt());
         dto.setUpdatedAt(order.getUpdatedAt());
         dto.setAssignedAt(order.getUpdatedAt());

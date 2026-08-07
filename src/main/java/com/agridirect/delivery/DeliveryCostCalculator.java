@@ -89,8 +89,8 @@ public class DeliveryCostCalculator {
         response.setPlatformCommission(platformCommission);
         response.setPlatformFee(platformCommission);
         
-        // Delivery Partner Earnings (95% of total delivery cost)
-        Double partnerEarnings = totalDeliveryCost - platformCommission;
+        // Delivery Partner Earnings (95% of total delivery cost, minimum ₹30 for shorter locations)
+        Double partnerEarnings = Math.max(30.0, totalDeliveryCost - platformCommission);
         response.setDeliveryPartnerEarnings(Math.round(partnerEarnings * 100.0) / 100.0);
         
         // Farmer Payout (e.g. simulated from orderAmount if available, or just mock it)

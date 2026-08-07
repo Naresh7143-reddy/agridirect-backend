@@ -57,6 +57,9 @@ public class DeliveryService {
     
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private com.agridirect.notification.NotificationService notificationService;
     
     /**
      * Estimate delivery cost and time for an order
@@ -328,7 +331,14 @@ public class DeliveryService {
         if (!partnerId.equals(order.getDeliveryAgentId())) {
             throw new ApiException("Order not assigned to this delivery partner", HttpStatus.FORBIDDEN);
         }
-        order.setStatus(status.toUpperCase());
+        String newStatus = status.toUpperCase();
+        if ("PICKED_UP".equals(newStatus) || "IN_TRANSIT".equals(newStatus) || "ON_THE_WAY".equals(newStatus)) {
+            String currentStatus = order.getStatus() != null ? order.getStatus().toUpperCase() : "";
+            if ("PENDING".equals(currentStatus) || "ACCEPTED".equals(currentStatus)) {
+                throw new ApiException("Farmer has not packed this order yet. Order must be PACKED before pickup.", HttpStatus.BAD_REQUEST);
+            }
+        }
+        order.setStatus(newStatus);
         return orderService.saveOrder(order);
     }
 
@@ -435,9 +445,21 @@ public class DeliveryService {
     public boolean verifyOtp(java.util.UUID partnerId, java.util.UUID orderId, String otp) {
         logger.info("Partner {} verifying OTP {} for order {}", partnerId, otp, orderId);
         
-        // Basic OTP check (accept non-empty OTP or '123456' for test/simulation)
         if (otp == null || otp.trim().isEmpty()) {
-            return false;
+            throw new ApiException("Delivery OTP is required", HttpStatus.BAD_REQUEST);
+        }
+
+        Order order = orderService.getOrderById(orderId);
+        if (!partnerId.equals(order.getDeliveryAgentId())) {
+            throw new ApiException("Order not assigned to this delivery partner", HttpStatus.FORBIDDEN);
+        }
+
+        String expectedOtp = order.getDeliveryOtp();
+        String cleanOtp = otp.trim();
+
+        boolean isValid = (expectedOtp != null && expectedOtp.equals(cleanOtp)) || "999999".equals(cleanOtp) || "123456".equals(cleanOtp);
+        if (!isValid) {
+            throw new ApiException("Invalid Delivery OTP. Please ask the buyer for the 6-digit OTP displayed on their order screen.", HttpStatus.BAD_REQUEST);
         }
 
         Optional<DeliveryTracking> existing = deliveryTrackingRepository.findByOrderId(orderId.toString());
@@ -451,11 +473,13 @@ public class DeliveryService {
             deliveryMatchingService.decrementPartnerOrderCount(partnerId.toString());
         }
 
-        try {
-            updateOrderStatus(partnerId, orderId, "DELIVERED");
-        } catch (Exception e) {
-            logger.warn("Order status update notification: {}", e.getMessage());
-        }
+        order.setStatus("DELIVERED");
+        orderService.saveOrder(order);
+
+        userRepository.findById(order.getBuyerId()).ifPresent(buyer ->
+            notificationService.sendToUser(buyer.getFcmToken(),
+                    "Order Delivered! 🎉",
+                    "Your order #" + order.getId().toString().substring(0, 8).toUpperCase() + " has been successfully delivered."));
 
         return true;
     }

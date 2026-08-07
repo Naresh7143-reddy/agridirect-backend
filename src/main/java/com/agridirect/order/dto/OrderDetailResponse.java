@@ -19,6 +19,7 @@ public class OrderDetailResponse {
     private Double totalAmount;
     private String deliveryAddress;
     private String notes;
+    private String deliveryOtp;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -118,4 +119,7 @@ public class OrderDetailResponse {
 
     public String getAgentVehicleType() { return agentVehicleType; }
     public void setAgentVehicleType(String agentVehicleType) { this.agentVehicleType = agentVehicleType; }
+
+    public String getDeliveryOtp() { return deliveryOtp; }
+    public void setDeliveryOtp(String deliveryOtp) { this.deliveryOtp = deliveryOtp; }
 }
