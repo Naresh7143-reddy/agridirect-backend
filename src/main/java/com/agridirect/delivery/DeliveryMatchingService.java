@@ -36,6 +36,9 @@ public class DeliveryMatchingService {
     @Autowired
     private DeliveryTrackingRepository deliveryTrackingRepository;
     
+    @Autowired
+    private com.agridirect.order.OrderRepository orderRepository;
+    
     @Value("${delivery.delivery-partner-search-radius-km:5}")
     private Double searchRadiusKm;
     
@@ -61,11 +64,23 @@ public class DeliveryMatchingService {
             return null;
         }
         
+        // Step 1.5: Fetch order to check required vehicle type
+        String requiredVehicleType = null;
+        try {
+            java.util.UUID uuid = java.util.UUID.fromString(orderId);
+            com.agridirect.order.Order order = orderRepository.findById(uuid).orElse(null);
+            if (order != null) {
+                requiredVehicleType = order.getRequiredVehicleType();
+            }
+        } catch (Exception e) {
+            logger.error("Failed to fetch order for required vehicle type", e);
+        }
+
         // Step 2: Score and rank candidates
         Map<DeliveryPartner, Double> partnerScores = scorePartners(
                 candidatePartners, 
                 pickupLatitude, pickupLongitude,
-                deliveryLatitude, deliveryLongitude);
+                deliveryLatitude, deliveryLongitude, requiredVehicleType);
         
         if (partnerScores.isEmpty()) {
             logger.warn("No partners passed filtering for order {}", orderId);
@@ -104,11 +119,20 @@ public class DeliveryMatchingService {
     private Map<DeliveryPartner, Double> scorePartners(
             List<DeliveryPartner> partners,
             Double pickupLat, Double pickupLng,
-            Double deliveryLat, Double deliveryLng) {
+            Double deliveryLat, Double deliveryLng,
+            String requiredVehicleType) {
         
         Map<DeliveryPartner, Double> scores = new HashMap<>();
         
         for (DeliveryPartner partner : partners) {
+            // Skip if vehicle type doesn't match requirement
+            if (requiredVehicleType != null && !requiredVehicleType.isEmpty() && !"Any".equalsIgnoreCase(requiredVehicleType)) {
+                if (partner.getVehicleType() == null || !requiredVehicleType.equalsIgnoreCase(partner.getVehicleType())) {
+                    logger.debug("Partner {} excluded due to vehicle type mismatch (required: {}, has: {})", partner.getId(), requiredVehicleType, partner.getVehicleType());
+                    continue;
+                }
+            }
+
             // Skip if partner cannot accept more orders
             if (!partner.canAcceptMoreOrders()) {
                 logger.debug("Partner {} is at max capacity", partner.getId());

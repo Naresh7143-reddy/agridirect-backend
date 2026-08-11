@@ -81,6 +81,7 @@ public class OrderService {
                 .notes(req.getNotes())
                 .deliveryOtp(generatedOtp)
                 .paymentStatus("PENDING")
+                .requiredVehicleType(req.getRequiredVehicleType())
                 .build());
 
         // 5. Save order items and collect unique farmerIds

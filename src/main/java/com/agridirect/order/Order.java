@@ -54,6 +54,9 @@ public class Order {
     @Column(name = "return_status")
     private String returnStatus;
 
+    @Column(name = "required_vehicle_type")
+    private String requiredVehicleType;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -78,13 +81,14 @@ public class Order {
         this.notes = b.notes;
         this.deliveryOtp = b.deliveryOtp;
         this.returnStatus = b.returnStatus;
+        this.requiredVehicleType = b.requiredVehicleType;
     }
 
     public static Builder builder() { return new Builder(); }
 
     public static class Builder {
         private UUID buyerId, deliveryAgentId;
-        private String status, deliveryAddress, paymentStatus, razorpayOrderId, razorpayPaymentId, notes, deliveryOtp, returnStatus;
+        private String status, deliveryAddress, paymentStatus, razorpayOrderId, razorpayPaymentId, notes, deliveryOtp, returnStatus, requiredVehicleType;
         private Double totalAmount, deliveryLat, deliveryLng;
 
         public Builder buyerId(UUID v)              { this.buyerId = v; return this; }
@@ -100,6 +104,7 @@ public class Order {
         public Builder notes(String v)              { this.notes = v; return this; }
         public Builder deliveryOtp(String v)        { this.deliveryOtp = v; return this; }
         public Builder returnStatus(String v)       { this.returnStatus = v; return this; }
+        public Builder requiredVehicleType(String v) { this.requiredVehicleType = v; return this; }
         public Order build()                        { return new Order(this); }
     }
 
@@ -117,6 +122,7 @@ public class Order {
     public String getNotes()             { return notes; }
     public String getDeliveryOtp()       { return deliveryOtp; }
     public String getReturnStatus()      { return returnStatus; }
+    public String getRequiredVehicleType() { return requiredVehicleType; }
     public LocalDateTime getCreatedAt()  { return createdAt; }
     public LocalDateTime getUpdatedAt()  { return updatedAt; }
 
@@ -134,6 +140,7 @@ public class Order {
     public void setNotes(String v)             { this.notes = v; }
     public void setDeliveryOtp(String v)       { this.deliveryOtp = v; }
     public void setReturnStatus(String v)      { this.returnStatus = v; }
+    public void setRequiredVehicleType(String v) { this.requiredVehicleType = v; }
     public void setCreatedAt(LocalDateTime v)  { this.createdAt = v; }
     public void setUpdatedAt(LocalDateTime v)  { this.updatedAt = v; }
 }
