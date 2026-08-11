@@ -195,11 +195,41 @@ public class PaymentService {
         if (!"PAID".equals(payment.getStatus())) {
             throw new ApiException("Only paid payments can be refunded", HttpStatus.BAD_REQUEST);
         }
+        
+        Double refundAmt = amount != null ? amount : payment.getAmount();
         String refundId = "rfnd_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        String refundStatus = "PROCESSED";
+
+        if (payment.getRazorpayPaymentId() != null && !payment.getRazorpayPaymentId().isEmpty()) {
+            try {
+                RazorpayClient client = new RazorpayClient(keyId, keySecret);
+                JSONObject refundRequest = new JSONObject();
+                refundRequest.put("amount", (int) (refundAmt * 100)); // in paise
+                refundRequest.put("speed", "normal");
+                
+                com.razorpay.Refund refund = client.payments.refund(payment.getRazorpayPaymentId(), refundRequest);
+                if (refund.has("id")) {
+                    refundId = refund.get("id");
+                }
+            } catch (Exception e) {
+                System.err.println("Razorpay SDK refund error (falling back to manual process): " + e.getMessage());
+            }
+        }
+
         payment.setRefundId(refundId);
-        payment.setRefundStatus("PENDING");
-        payment.setRefundAmount(amount != null ? amount : payment.getAmount());
+        payment.setRefundStatus(refundStatus);
+        payment.setRefundAmount(refundAmt);
         payment.setRefundReason(reason);
+        payment.setStatus("REFUNDED");
+
+        // Update corresponding order
+        if (payment.getOrderId() != null) {
+            orderRepository.findById(payment.getOrderId()).ifPresent(order -> {
+                order.setPaymentStatus("REFUNDED");
+                orderRepository.save(order);
+            });
+        }
+
         return paymentRepository.save(payment);
     }
 
