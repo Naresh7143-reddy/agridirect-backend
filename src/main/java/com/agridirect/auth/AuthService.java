@@ -38,6 +38,9 @@ public class AuthService {
     private DeliveryRepository deliveryRepository;
 
     @Autowired
+    private com.agridirect.delivery.DeliveryPartnerRepository deliveryPartnerRepository;
+
+    @Autowired
     private JwtUtil jwtUtil;
 
     public AuthResponse register(RegisterRequest req) {
