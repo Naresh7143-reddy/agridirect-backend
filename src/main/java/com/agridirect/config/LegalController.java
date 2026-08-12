@@ -14,7 +14,7 @@ import java.util.Map;
 @RestController
 public class LegalController {
 
-    @GetMapping({"/health", "/api/health"})
+    @GetMapping({"/", "/health", "/api/health"})
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of("status", "UP", "app", "AgriDirect"));
     }
