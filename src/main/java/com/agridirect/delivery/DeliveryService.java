@@ -62,6 +62,9 @@ public class DeliveryService {
     private UserRepository userRepository;
 
     @Autowired
+    private com.agridirect.farmer.FarmerRepository farmerRepository;
+
+    @Autowired
     private com.agridirect.notification.NotificationService notificationService;
     
     /**
