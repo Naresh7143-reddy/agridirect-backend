@@ -86,12 +86,38 @@ public class AuthService {
                         .gstNumber(req.getGstNumber())
                         .build());
 
-                case "DELIVERY" -> deliveryRepository.save(DeliveryProfile.builder()
-                        .userId(user.getId())
-                        .vehicleType(req.getVehicleType())
-                        .licenseNo(req.getLicenseNo())
-                        .isAvailable(true)
-                        .build());
+                case "DELIVERY" -> {
+                    String vehNumber = req.getVehicleRegistration() != null && !req.getVehicleRegistration().isBlank()
+                            ? req.getVehicleRegistration()
+                            : req.getVehicleNumber();
+
+                    deliveryRepository.save(DeliveryProfile.builder()
+                            .userId(user.getId())
+                            .vehicleType(req.getVehicleType())
+                            .licenseNo(req.getLicenseNo())
+                            .vehicleRegistration(vehNumber)
+                            .isAvailable(true)
+                            .build());
+
+                    try {
+                        com.agridirect.delivery.DeliveryPartner dp = new com.agridirect.delivery.DeliveryPartner();
+                        dp.setUserId(user.getId().toString());
+                        dp.setName(user.getName());
+                        dp.setPhone(user.getPhone());
+                        dp.setVehicleType(req.getVehicleType() != null && !req.getVehicleType().isBlank() ? req.getVehicleType() : "BIKE");
+                        dp.setVehicleRegistration(vehNumber);
+                        dp.setIsAvailable(true);
+                        dp.setCurrentOrdersCount(0);
+                        dp.setMaxConcurrentOrders(3);
+                        dp.setTotalDeliveries(0);
+                        dp.setAvgRating(4.5);
+                        dp.setVerificationStatus("VERIFIED");
+                        dp.setIsActive(true);
+                        deliveryPartnerRepository.save(dp);
+                    } catch (Exception e) {
+                        // DeliveryPartner may already exist or handle duplicate phone gracefully
+                    }
+                }
             }
 
             return buildAuthResponse(user);

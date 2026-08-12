@@ -419,8 +419,20 @@ public class DeliveryService {
         if (updates.containsKey("vehicleType")) {
             p.setVehicleType((String) updates.get("vehicleType"));
         }
-        if (updates.containsKey("vehicleRegistration")) {
-            p.setVehicleRegistration((String) updates.get("vehicleRegistration"));
+        if (updates.containsKey("vehicleRegistration") && updates.get("vehicleRegistration") != null) {
+            String vehReg = (String) updates.get("vehicleRegistration");
+            p.setVehicleRegistration(vehReg);
+            deliveryRepository.findByUserId(partnerId).ifPresent(dp -> {
+                dp.setVehicleRegistration(vehReg);
+                deliveryRepository.save(dp);
+            });
+        } else if (updates.containsKey("vehicleNumber") && updates.get("vehicleNumber") != null) {
+            String vehNum = (String) updates.get("vehicleNumber");
+            p.setVehicleRegistration(vehNum);
+            deliveryRepository.findByUserId(partnerId).ifPresent(dp -> {
+                dp.setVehicleRegistration(vehNum);
+                deliveryRepository.save(dp);
+            });
         }
         
         deliveryPartnerRepository.save(p);

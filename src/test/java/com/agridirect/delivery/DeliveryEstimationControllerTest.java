@@ -24,6 +24,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 
 @DisplayName("Delivery Estimation Controller Tests")
 @SpringBootTest
+@org.springframework.test.context.ActiveProfiles("test")
 @AutoConfigureMockMvc(addFilters = false)
 class DeliveryEstimationControllerTest {
     

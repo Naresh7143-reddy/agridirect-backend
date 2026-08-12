@@ -20,6 +20,8 @@ public class RegisterRequest {
     // Delivery fields
     private String vehicleType;
     private String licenseNo;
+    private String vehicleNumber;
+    private String vehicleRegistration;
 
     public RegisterRequest() {}
 
@@ -35,17 +37,21 @@ public class RegisterRequest {
     public String getGstNumber()    { return gstNumber; }
     public String getVehicleType()  { return vehicleType; }
     public String getLicenseNo()    { return licenseNo; }
+    public String getVehicleNumber() { return vehicleNumber != null ? vehicleNumber : vehicleRegistration; }
+    public String getVehicleRegistration() { return vehicleRegistration != null ? vehicleRegistration : vehicleNumber; }
 
-    public void setIdToken(String v)     { this.idToken = v; }
-    public void setName(String v)        { this.name = v; }
-    public void setRole(String v)        { this.role = v; }
-    public void setEmail(String v)       { this.email = v; }
-    public void setFarmName(String v)    { this.farmName = v; }
-    public void setLocation(String v)    { this.location = v; }
-    public void setLandAcres(Double v)   { this.landAcres = v; }
-    public void setBuyerType(String v)   { this.buyerType = v; }
-    public void setAddress(String v)     { this.address = v; }
-    public void setGstNumber(String v)   { this.gstNumber = v; }
-    public void setVehicleType(String v) { this.vehicleType = v; }
-    public void setLicenseNo(String v)   { this.licenseNo = v; }
+    public void setIdToken(String v)             { this.idToken = v; }
+    public void setName(String v)                { this.name = v; }
+    public void setRole(String v)                { this.role = v; }
+    public void setEmail(String v)               { this.email = v; }
+    public void setFarmName(String v)            { this.farmName = v; }
+    public void setLocation(String v)            { this.location = v; }
+    public void setLandAcres(Double v)           { this.landAcres = v; }
+    public void setBuyerType(String v)           { this.buyerType = v; }
+    public void setAddress(String v)             { this.address = v; }
+    public void setGstNumber(String v)           { this.gstNumber = v; }
+    public void setVehicleType(String v)         { this.vehicleType = v; }
+    public void setLicenseNo(String v)           { this.licenseNo = v; }
+    public void setVehicleNumber(String v)       { this.vehicleNumber = v; }
+    public void setVehicleRegistration(String v) { this.vehicleRegistration = v; }
 }

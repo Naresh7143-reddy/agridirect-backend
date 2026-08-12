@@ -157,6 +157,14 @@ public class DeliveryPartnerProfile {
         this.vehicleRegistration = vehicleRegistration;
     }
 
+    public String getVehicleNumber() {
+        return vehicleRegistration;
+    }
+
+    public void setVehicleNumber(String vehicleNumber) {
+        this.vehicleRegistration = vehicleNumber;
+    }
+
     public Boolean getAvailable() {
         return available;
     }

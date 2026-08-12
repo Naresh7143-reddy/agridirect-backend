@@ -26,6 +26,9 @@ public class DeliveryProfile {
     
     @Column(name = "license_no", length = 100)
     private String licenseNo;
+
+    @Column(name = "vehicle_registration", length = 100)
+    private String vehicleRegistration;
     
     @Column(name = "is_available")
     private Boolean isAvailable;
@@ -71,6 +74,11 @@ public class DeliveryProfile {
             return this;
         }
 
+        public Builder vehicleRegistration(String vehicleRegistration) {
+            profile.vehicleRegistration = vehicleRegistration;
+            return this;
+        }
+
         public Builder isAvailable(Boolean isAvailable) {
             profile.isAvailable = isAvailable;
             return this;
@@ -112,6 +120,14 @@ public class DeliveryProfile {
 
     public void setLicenseNo(String licenseNo) {
         this.licenseNo = licenseNo;
+    }
+
+    public String getVehicleRegistration() {
+        return vehicleRegistration;
+    }
+
+    public void setVehicleRegistration(String vehicleRegistration) {
+        this.vehicleRegistration = vehicleRegistration;
     }
 
     public Boolean getIsAvailable() {
