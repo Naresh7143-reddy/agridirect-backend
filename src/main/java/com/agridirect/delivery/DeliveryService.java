@@ -56,6 +56,9 @@ public class DeliveryService {
     private OrderRepository orderRepository;
     
     @Autowired
+    private com.agridirect.order.OrderItemRepository orderItemRepository;
+    
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -488,84 +491,149 @@ public class DeliveryService {
      * Get earnings for a delivery partner
      */
     public java.util.Map<String, Object> getEarnings(java.util.UUID partnerId) {
-        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
-        
-        double totalDeliveries = partner.isPresent() && partner.get().getTotalDeliveries() != null 
-                ? partner.get().getTotalDeliveries() : 14;
-        int activeCount = partner.isPresent() && partner.get().getCurrentOrdersCount() != null 
-                ? partner.get().getCurrentOrdersCount() : 0;
-        double rating = partner.isPresent() && partner.get().getAvgRating() != null 
-                ? partner.get().getAvgRating() : 4.9;
-
-        double avgPerDelivery = 85.0;
-        double totalEarnings = totalDeliveries * avgPerDelivery;
-        double todayEarnings = 340.0;
-        double weekEarnings = 1190.0;
-        double monthEarnings = 4760.0;
-        double pendingPayout = 425.0;
+        Optional<DeliveryPartner> partnerOpt = deliveryPartnerRepository.findByUserId(partnerId.toString());
+        if (!partnerOpt.isPresent()) {
+            partnerOpt = deliveryPartnerRepository.findById(partnerId.toString());
+        }
 
         java.util.Map<String, Object> earnings = new java.util.HashMap<>();
-        earnings.put("totalEarnings", Math.round(totalEarnings * 100.0) / 100.0);
-        earnings.put("todayEarnings", todayEarnings);
-        earnings.put("weekEarnings", weekEarnings);
-        earnings.put("monthEarnings", monthEarnings);
-        earnings.put("pendingPayout", pendingPayout);
+        if (!partnerOpt.isPresent()) {
+            earnings.put("totalEarnings", 0.0);
+            earnings.put("todayEarnings", 0.0);
+            earnings.put("weekEarnings", 0.0);
+            earnings.put("monthEarnings", 0.0);
+            earnings.put("pendingPayout", 0.0);
+            earnings.put("basePay", 0.0);
+            earnings.put("distancePay", 0.0);
+            earnings.put("surgeBonus", 0.0);
+            earnings.put("tips", 0.0);
+            earnings.put("totalDeliveries", 0);
+            earnings.put("completedDeliveries", 0);
+            earnings.put("activeDeliveries", 0);
+            earnings.put("cancelledDeliveries", 0);
+            earnings.put("avgPerDelivery", 0.0);
+            earnings.put("avgRating", 0.0);
+            earnings.put("acceptanceRate", 100);
+            earnings.put("onTimeRate", 100);
+            earnings.put("totalKm", 0.0);
+            earnings.put("recentPayouts", new java.util.ArrayList<>());
+            return earnings;
+        }
 
-        // Detailed Pay Breakdown
+        DeliveryPartner partner = partnerOpt.get();
+        UUID agentId = UUID.fromString(partner.getUserId());
+        List<Order> allOrders = orderRepository.findByDeliveryAgentIdOrderByCreatedAtDesc(agentId);
+
+        double totalEarnings = 0.0;
+        double todayEarnings = 0.0;
+        double weekEarnings = 0.0;
+        double monthEarnings = 0.0;
+        int completedCount = 0;
+        int activeCount = 0;
+        int cancelledCount = 0;
+        double totalKm = 0.0;
+
+        java.util.List<java.util.Map<String, Object>> recentPayouts = new java.util.ArrayList<>();
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+        for (Order o : allOrders) {
+            String status = o.getStatus().toUpperCase();
+            
+            // Calculate delivery fee
+            double rawFee = o.getTotalAmount() != null ? Math.round(o.getTotalAmount() * 0.08 * 100.0) / 100.0 : 30.0;
+            double deliveryFee = Math.max(30.0, rawFee);
+
+            if (status.equals("DELIVERED")) {
+                completedCount++;
+                totalEarnings += deliveryFee;
+
+                java.time.LocalDateTime orderTime = o.getCreatedAt() != null ? o.getCreatedAt() : now;
+                if (orderTime.isAfter(now.minusDays(1))) {
+                    todayEarnings += deliveryFee;
+                }
+                if (orderTime.isAfter(now.minusDays(7))) {
+                    weekEarnings += deliveryFee;
+                }
+                if (orderTime.isAfter(now.minusDays(30))) {
+                    monthEarnings += deliveryFee;
+                }
+
+                // Calculate distance if coordinates are present
+                double distance = 0.0;
+                if (o.getDeliveryLat() != null && o.getDeliveryLng() != null) {
+                    // Try to get farmer farm location for pickup coordinates
+                    List<com.agridirect.order.OrderItem> items = orderItemRepository.findByOrderId(o.getId());
+                    if (items != null && !items.isEmpty()) {
+                        UUID farmerId = items.get(0).getFarmerId();
+                        if (farmerId != null) {
+                            Optional<com.agridirect.farmer.FarmerProfile> fpOpt = farmerRepository.findByUserId(farmerId);
+                            if (fpOpt.isPresent() && fpOpt.get().getFarmLat() != null && fpOpt.get().getFarmLng() != null) {
+                                distance = mapsService.getHaversineDistance(
+                                    fpOpt.get().getFarmLat(), fpOpt.get().getFarmLng(),
+                                    o.getDeliveryLat(), o.getDeliveryLng()
+                                );
+                            }
+                        }
+                    }
+                }
+                if (distance == 0.0) {
+                    distance = 4.2; // fallback
+                }
+                totalKm += distance;
+
+                // Add to recent payouts
+                if (recentPayouts.size() < 10) {
+                    java.util.Map<String, Object> p = new java.util.HashMap<>();
+                    p.put("id", "PAY-" + o.getId().toString().substring(0, 4).toUpperCase());
+                    p.put("orderId", o.getId().toString().substring(0, 8).toUpperCase());
+                    
+                    String formattedDate = "Yesterday, 06:15 PM";
+                    if (o.getCreatedAt() != null) {
+                        try {
+                            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                            formattedDate = o.getCreatedAt().format(formatter);
+                        } catch (Exception ex) {}
+                    }
+                    p.put("date", formattedDate);
+                    p.put("amount", deliveryFee);
+                    p.put("distanceKm", Math.round(distance * 10.0) / 10.0);
+                    p.put("status", "COMPLETED");
+                    p.put("customerTip", Math.round(deliveryFee * 0.06 * 100.0) / 100.0);
+                    recentPayouts.add(p);
+                }
+            } else if (status.equals("CANCELLED")) {
+                cancelledCount++;
+            } else {
+                activeCount++;
+            }
+        }
+
         double basePay = Math.round(totalEarnings * 0.60 * 100.0) / 100.0;
         double distancePay = Math.round(totalEarnings * 0.22 * 100.0) / 100.0;
         double surgeBonus = Math.round(totalEarnings * 0.12 * 100.0) / 100.0;
         double tips = Math.round(totalEarnings * 0.06 * 100.0) / 100.0;
 
+        earnings.put("totalEarnings", Math.round(totalEarnings * 100.0) / 100.0);
+        earnings.put("todayEarnings", Math.round(todayEarnings * 100.0) / 100.0);
+        earnings.put("weekEarnings", Math.round(weekEarnings * 100.0) / 100.0);
+        earnings.put("monthEarnings", Math.round(monthEarnings * 100.0) / 100.0);
+        earnings.put("pendingPayout", Math.round(totalEarnings * 0.10 * 100.0) / 100.0); // 10% pending
         earnings.put("basePay", basePay);
         earnings.put("distancePay", distancePay);
         earnings.put("surgeBonus", surgeBonus);
         earnings.put("tips", tips);
 
-        // Performance & Stats
-        earnings.put("totalDeliveries", (int) totalDeliveries);
-        earnings.put("completedDeliveries", (int) totalDeliveries);
+        earnings.put("totalDeliveries", completedCount);
+        earnings.put("completedDeliveries", completedCount);
         earnings.put("activeDeliveries", activeCount);
-        earnings.put("cancelledDeliveries", 1);
-        earnings.put("avgPerDelivery", avgPerDelivery);
-        earnings.put("avgRating", rating);
-        earnings.put("acceptanceRate", 96);
-        earnings.put("onTimeRate", 94);
-        earnings.put("totalKm", Math.round(totalDeliveries * 4.5 * 10.0) / 10.0);
-
-        // Recent Payout Logs
-        java.util.List<java.util.Map<String, Object>> recentPayouts = new java.util.ArrayList<>();
+        earnings.put("cancelledDeliveries", cancelledCount);
+        earnings.put("avgPerDelivery", completedCount > 0 ? Math.round((totalEarnings / completedCount) * 100.0) / 100.0 : 0.0);
         
-        java.util.Map<String, Object> p1 = new java.util.HashMap<>();
-        p1.put("id", "PAY-" + System.currentTimeMillis() % 10000);
-        p1.put("orderId", "ORD-8921");
-        p1.put("date", "Today, 02:45 PM");
-        p1.put("amount", 95.0);
-        p1.put("distanceKm", 4.2);
-        p1.put("status", "COMPLETED");
-        p1.put("customerTip", 15.0);
-        recentPayouts.add(p1);
-
-        java.util.Map<String, Object> p2 = new java.util.HashMap<>();
-        p2.put("id", "PAY-" + (System.currentTimeMillis() - 3600000) % 10000);
-        p2.put("orderId", "ORD-8918");
-        p2.put("date", "Today, 11:20 AM");
-        p2.put("amount", 85.0);
-        p2.put("distanceKm", 3.8);
-        p2.put("status", "COMPLETED");
-        p2.put("customerTip", 10.0);
-        recentPayouts.add(p2);
-
-        java.util.Map<String, Object> p3 = new java.util.HashMap<>();
-        p3.put("id", "PAY-" + (System.currentTimeMillis() - 86400000) % 10000);
-        p3.put("orderId", "ORD-8890");
-        p3.put("date", "Yesterday, 06:15 PM");
-        p3.put("amount", 110.0);
-        p3.put("distanceKm", 6.5);
-        p3.put("status", "COMPLETED");
-        p3.put("customerTip", 20.0);
-        recentPayouts.add(p3);
-
+        double rating = partner.getAvgRating() != null ? partner.getAvgRating() : 5.0;
+        earnings.put("avgRating", rating);
+        earnings.put("acceptanceRate", 100);
+        earnings.put("onTimeRate", 100);
+        earnings.put("totalKm", Math.round(totalKm * 10.0) / 10.0);
         earnings.put("recentPayouts", recentPayouts);
 
         return earnings;
