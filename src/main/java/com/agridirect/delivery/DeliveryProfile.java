@@ -1,6 +1,10 @@
 package com.agridirect.delivery;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -32,16 +36,16 @@ public class DeliveryProfile {
     @Column(name = "current_longitude")
     private Double currentLongitude;
     
-    @Column(name = "created_at")
-    private Long createdAt;
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
     
+    @UpdateTimestamp
     @Column(name = "updated_at")
-    private Long updatedAt;
+    private LocalDateTime updatedAt;
 
     // Constructors
     public DeliveryProfile() {
-        this.createdAt = System.currentTimeMillis();
-        this.updatedAt = System.currentTimeMillis();
     }
 
     // Builder pattern
@@ -150,19 +154,19 @@ public class DeliveryProfile {
         this.currentLongitude = currentLng;
     }
 
-    public Long getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Long createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public Long getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Long updatedAt) {
+    public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 }
