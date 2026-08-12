@@ -27,7 +27,7 @@ public class DeliveryProfile {
     @Column(name = "license_no", length = 100)
     private String licenseNo;
 
-    @Column(name = "vehicle_registration", length = 100)
+    @Transient
     private String vehicleRegistration;
     
     @Column(name = "is_available")
