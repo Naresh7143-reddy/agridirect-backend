@@ -104,6 +104,7 @@ public class AuthService {
 
                     try {
                         com.agridirect.delivery.DeliveryPartner dp = new com.agridirect.delivery.DeliveryPartner();
+                        dp.setId(user.getId().toString());
                         dp.setUserId(user.getId().toString());
                         dp.setName(user.getName());
                         dp.setPhone(user.getPhone());

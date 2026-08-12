@@ -1,5 +1,6 @@
 package com.agridirect.user;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -26,6 +27,7 @@ public class User {
     @Column(name = "fcm_token")
     private String fcmToken;
 
+    @JsonProperty("isActive")
     @Column(name = "is_active")
     private boolean isActive = true;
 
@@ -65,7 +67,13 @@ public class User {
     public String getEmail()      { return email; }
     public String getRole()       { return role; }
     public String getFcmToken()   { return fcmToken; }
+
+    @JsonProperty("isActive")
     public boolean isActive()     { return isActive; }
+
+    @JsonProperty("isActive")
+    public boolean getIsActive()  { return isActive; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
 
     // Setters

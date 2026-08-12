@@ -280,10 +280,55 @@ public class DeliveryService {
     }
 
     /**
+     * Get or auto-create a DeliveryPartner record for a given partner/user UUID
+     */
+    public Optional<DeliveryPartner> getOrCreatePartner(java.util.UUID partnerId) {
+        if (partnerId == null) return Optional.empty();
+        String partnerIdStr = partnerId.toString();
+
+        // 1. Search by userId in delivery_partners table
+        Optional<DeliveryPartner> dpOpt = deliveryPartnerRepository.findByUserId(partnerIdStr);
+        if (dpOpt.isPresent()) return dpOpt;
+
+        // 2. Search by primary key id in delivery_partners table
+        dpOpt = deliveryPartnerRepository.findById(partnerIdStr);
+        if (dpOpt.isPresent()) return dpOpt;
+
+        // 3. Auto-heal: If missing in delivery_partners, create from User and DeliveryProfile
+        Optional<User> userOpt = userRepository.findById(partnerId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            Optional<DeliveryProfile> profileOpt = deliveryRepository.findByUserId(partnerId);
+
+            DeliveryPartner newDp = new DeliveryPartner();
+            newDp.setId(partnerIdStr);
+            newDp.setUserId(partnerIdStr);
+            newDp.setName(user.getName() != null ? user.getName() : "Delivery Partner");
+            newDp.setPhone(user.getPhone() != null ? user.getPhone() : "");
+            newDp.setVehicleType(profileOpt.map(DeliveryProfile::getVehicleType).orElse("BIKE"));
+            newDp.setVehicleRegistration(profileOpt.map(DeliveryProfile::getVehicleRegistration).orElse(""));
+            newDp.setIsAvailable(true);
+            newDp.setCurrentOrdersCount(0);
+            newDp.setMaxConcurrentOrders(3);
+            newDp.setTotalDeliveries(0);
+            newDp.setAvgRating(4.5);
+            newDp.setVerificationStatus("VERIFIED");
+            newDp.setIsActive(true);
+
+            try {
+                return Optional.of(deliveryPartnerRepository.save(newDp));
+            } catch (Exception e) {
+                logger.error("Error auto-creating DeliveryPartner for user {}", partnerIdStr, e);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * Get delivery partner profile
      */
     public DeliveryPartnerProfile getProfile(java.util.UUID partnerId) {
-        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
+        Optional<DeliveryPartner> partner = getOrCreatePartner(partnerId);
         if (!partner.isPresent()) {
             return null;
         }
@@ -291,11 +336,12 @@ public class DeliveryService {
         DeliveryPartner p = partner.get();
         DeliveryPartnerProfile profile = new DeliveryPartnerProfile();
         profile.setId(p.getId());
+        profile.setUserId(p.getUserId());
         profile.setName(p.getName());
         profile.setPhone(p.getPhone());
         profile.setVehicleType(p.getVehicleType());
         profile.setVehicleRegistration(p.getVehicleRegistration());
-        profile.setAvailable(p.getIsAvailable());
+        profile.setAvailable(Boolean.TRUE.equals(p.getIsAvailable()));
         profile.setRating(p.getAvgRating());
         profile.setTotalDeliveries(p.getTotalDeliveries());
         profile.setCurrentOrderCount(p.getCurrentOrdersCount());
@@ -307,7 +353,7 @@ public class DeliveryService {
      * Update delivery partner availability
      */
     public DeliveryPartnerProfile updateAvailability(java.util.UUID partnerId, boolean available) {
-        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
+        Optional<DeliveryPartner> partner = getOrCreatePartner(partnerId);
         if (!partner.isPresent()) {
             return null;
         }
@@ -403,7 +449,7 @@ public class DeliveryService {
      * Update delivery partner profile
      */
     public DeliveryPartnerProfile updateProfile(java.util.UUID partnerId, java.util.Map<String, Object> updates) {
-        Optional<DeliveryPartner> partner = deliveryPartnerRepository.findById(partnerId.toString());
+        Optional<DeliveryPartner> partner = getOrCreatePartner(partnerId);
         if (!partner.isPresent()) {
             return null;
         }
