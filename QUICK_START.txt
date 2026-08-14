@@ -1,0 +1,148 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  🌾 AgriDirect Custom AI - QUICK START 🌾                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📋 PREREQUISITE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Install Python 3.10+ from https://www.python.org/downloads/
+✓ Check "Add Python to PATH" ✅ during installation
+✓ Restart PowerShell
+✓ Verify: python --version
+
+
+🚀 STEP 1: SETUP & TRAIN MODELS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cd c:\Users\nares\Downloads\backend\local_ai_service
+.\run_setup.bat
+
+This will:
+  • Create Python virtual environment
+  • Install dependencies (PyTorch, FastAPI, etc.)
+  • Train Chatbot model (TF-IDF + Neural Network)
+  • Train Disease Detection model (PyTorch CNN)
+  • Start FastAPI server on http://localhost:8000
+
+⏱️  First run takes 5-10 minutes (includes model training)
+
+
+🧪 STEP 2: TEST THE AI SERVICE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Test 1: Chat with AI
+┌─────────────────────────────────────────────────────────────────────────┐
+│ curl -X POST http://localhost:8000/api/ai/chat \                       │
+│      -H "Content-Type: application/json" \                             │
+│      -d '{"message":"hello","language":"English"}'                     │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Expected response:
+  {"response":"Namaste! I am Krishi AI. How can I help you today?"}
+
+Test 2: Crop Advice
+┌─────────────────────────────────────────────────────────────────────────┐
+│ curl -X POST http://localhost:8000/api/ai/crop-advice \               │
+│      -H "Content-Type: application/json" \                             │
+│      -d '{"season":"Monsoon","location":"Maharashtra",                │
+│          "soilType":"Loam","waterAvailability":"High"}'               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+🔗 STEP 3: BACKEND AUTO-INTEGRATES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Once AI service is running, your backend automatically uses it:
+
+  POST /api/farmer/ai/chat            → Uses local Chatbot ✅
+  POST /api/farmer/ai/disease         → Uses local Disease Detection ✅
+  GET  /api/farmer/ai/crop-advice     → Uses local Crop Advisor ✅
+  GET  /api/farmer/ai/price-forecast  → Uses local Price Forecaster ✅
+
+NO CODE CHANGES NEEDED! 🎉
+
+
+📁 KEY FILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+backend/
+  ├── QUICK_START.txt                   ← This file
+  ├── CUSTOM_AI_SETUP.md                ← Complete setup guide
+  ├── AI_IMPLEMENTATION_SUMMARY.md      ← Architecture & details
+  │
+  └── local_ai_service/
+      ├── run_setup.bat                 ← RUN THIS FIRST
+      ├── start_server.bat              ← Start server after setup
+      ├── app.py                        ← FastAPI server
+      ├── train_chatbot.py              ← Chatbot training
+      ├── train_disease.py              ← Disease detection training
+      ├── requirements.txt              ← Python dependencies
+      ├── README.md                     ← Detailed API docs
+      └── models/
+          ├── disease_model.pth         ← CNN model (trained)
+          ├── chatbot_pipeline.pkl      ← NLP model (trained)
+          └── ...
+
+
+🎯 NEXT TIME: QUICK START
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Once setup is done (models trained), just run:
+
+  cd c:\Users\nares\Downloads\backend\local_ai_service
+  .\start_server.bat
+
+This keeps the server running. Keep this window open while using the app.
+
+
+💡 IMPROVE ACCURACY WITH YOUR DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Collect disease images → Organize in dataset/ folder
+2. Edit train_disease.py to use real images
+3. Run: python train_disease.py (in venv)
+4. Models automatically updated!
+
+
+❓ TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Problem: "Python was not found"
+  → Install Python 3.10+ and check "Add to PATH"
+
+Problem: "venv not found"
+  → Delete models/ folder, run run_setup.bat again
+
+Problem: "Backend can't connect"
+  → Verify: curl http://localhost:8000 works
+  → Check firewall allows port 8000
+
+Problem: "Models not trained"
+  → Wait for run_setup.bat to complete
+  → Check models/ folder has .pth and .pkl files
+
+For more help → See CUSTOM_AI_SETUP.md
+
+
+🌐 DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Local (MVP):       .\start_server.bat → Backend uses localhost:8000
+Production:        Deploy to Render as separate service → Update URL
+
+See CUSTOM_AI_SETUP.md "Deployment" section for details
+
+
+✅ WHAT YOU GET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Chatbot              - Answer farmer questions
+✓ Disease Detection    - Identify crop diseases from photos
+✓ Crop Advice          - Recommend crops
+✓ Price Forecast       - Predict market prices
+✓ No API fees          - 100% self-hosted
+✓ Privacy              - No data sent to third parties
+✓ Offline capable      - Works without internet
+
+
+📞 NEXT STEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Run:   .\run_setup.bat
+2. Wait:  5-10 minutes for training
+3. Test:  curl http://localhost:8000/api/ai/chat
+4. Use:   Backend automatically calls your AI!
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║         Your backend now has CUSTOM AI - completely self-hosted! 🌾         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
