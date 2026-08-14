@@ -46,6 +46,14 @@ public class OrderDetailResponse {
     private Double agentLng;
     private String agentVehicleType;
 
+    // ── Buyer delivery coordinates ─────────────────────────────────────────────
+    private Double dropLat;
+    private Double dropLng;
+
+    // ── Farmer/Pickup coordinates ──────────────────────────────────────────────
+    private Double pickupLat;
+    private Double pickupLng;
+
     // ── Getters / Setters ─────────────────────────────────────────────────────
 
     public UUID getId() { return id; }
@@ -122,4 +130,16 @@ public class OrderDetailResponse {
 
     public String getDeliveryOtp() { return deliveryOtp; }
     public void setDeliveryOtp(String deliveryOtp) { this.deliveryOtp = deliveryOtp; }
+
+    public Double getDropLat() { return dropLat; }
+    public void setDropLat(Double dropLat) { this.dropLat = dropLat; }
+
+    public Double getDropLng() { return dropLng; }
+    public void setDropLng(Double dropLng) { this.dropLng = dropLng; }
+
+    public Double getPickupLat() { return pickupLat; }
+    public void setPickupLat(Double pickupLat) { this.pickupLat = pickupLat; }
+
+    public Double getPickupLng() { return pickupLng; }
+    public void setPickupLng(Double pickupLng) { this.pickupLng = pickupLng; }
 }

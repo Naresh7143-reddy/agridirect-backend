@@ -298,6 +298,20 @@ public class OrderService {
                 dto.setAgentVehicleType(dp.getVehicleType());
             });
         }
+
+        // Buyer delivery coordinates (drop location)
+        dto.setDropLat(order.getDeliveryLat());
+        dto.setDropLng(order.getDeliveryLng());
+
+        // Farmer pickup coordinates (get from first farmer's profile)
+        items.stream().map(OrderItem::getFarmerId).filter(java.util.Objects::nonNull)
+                .findFirst().ifPresent(farmerId -> {
+                    farmerRepository.findByUserId(farmerId).ifPresent(fp -> {
+                        dto.setPickupLat(fp.getFarmLat());
+                        dto.setPickupLng(fp.getFarmLng());
+                    });
+                });
+
         return dto;
     }
 

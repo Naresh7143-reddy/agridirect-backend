@@ -61,167 +61,101 @@ public class GeminiService {
     };
     private static final String GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
 
-    // ─── Public entry points ──────────────────────────────────────────────────
+    // ─── Local AI Python Server Integration ───────────────────────────────────
+
+    private String callLocalAi(String path, String jsonBody) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8000" + path))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+            HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            if (res.statusCode() == 200) {
+                JsonNode root = MAPPER.readTree(res.body());
+                return root.path("response").asText();
+            } else {
+                log.warn("Local AI endpoint {} returned HTTP status {}", path, res.statusCode());
+            }
+        } catch (Exception e) {
+            log.error("Failed to connect to local AI service at localhost:8000. Is it running? Error: {}", e.getMessage());
+        }
+        return null;
+    }
 
     public String chat(String message, String language) {
         return chat(message, language, null);
     }
 
-    /**
-     * @param history prior conversation turns ({@code role}: "user"|"assistant", {@code content}: text),
-     *                 oldest first, for multi-turn memory. May be null/empty.
-     */
     public String chat(String message, String language, java.util.List<Map<String, String>> history) {
         if (language == null || language.isBlank()) language = "English";
-
-        String systemPrompt =
-                "You are Krishi AI, an expert farming assistant for Indian farmers. " +
-                "Reply in " + language + " language. " +
-                "Help with crop diseases, market prices, government schemes, fertilizers, " +
-                "irrigation, weather, organic farming, and pest control. " +
-                "If the question is not farming-related, politely redirect to farming topics. " +
-                "Keep answers practical, simple, India-specific, and under 250 words. " +
-                "Use emojis sparingly for clarity (e.g. 🌾 💰 📊). " +
-                "Use the prior conversation for context (e.g. remember the crop, location, or " +
-                "problem the farmer already mentioned) and avoid repeating questions already answered.";
-
-        // 1. Try Grok (xAI — primary)
-        if (grokService.isConfigured()) {
-            String grokReply = grokService.chat(systemPrompt, message, history);
-            if (grokReply != null && !grokReply.isBlank()) return grokReply;
-            log.warn("Grok failed — falling through to Groq");
+        try {
+            java.util.List<Map<String, String>> reqHistory = history != null ? history : java.util.Collections.emptyList();
+            String body = MAPPER.writeValueAsString(Map.of(
+                    "message", message,
+                    "language", language,
+                    "history", reqHistory
+            ));
+            String reply = callLocalAi("/api/ai/chat", body);
+            if (reply != null && !reply.isBlank()) return reply;
+        } catch (Exception e) {
+            log.error("Error formatting local chat request: {}", e.getMessage());
         }
-
-        // 2. Try Groq (Llama 3.3 70B — fallback #1)
-        if (groqService.isConfigured()) {
-            String groqReply = groqService.chat(systemPrompt, message, history);
-            if (groqReply != null && !groqReply.isBlank()) return groqReply;
-            log.warn("Groq failed — falling through to Gemini");
-        }
-
-        // 2. Try Gemini (requires billing / valid AIza key)
-        StringBuilder prompt = new StringBuilder(systemPrompt);
-        if (history != null && !history.isEmpty()) {
-            prompt.append("\n\nConversation so far:");
-            for (Map<String, String> turn : history) {
-                prompt.append("\n").append("user".equals(turn.get("role")) ? "Farmer" : "Krishi AI")
-                        .append(": ").append(turn.get("content"));
-            }
-        }
-        prompt.append("\n\nFarmer's question: ").append(message);
-        String reply = tryGemini(prompt.toString());
-        if (reply != null && !reply.isBlank()) return reply;
-
-        // 4. Last resort: keyword-matched knowledge base
-        log.warn("All AI providers failed for chat — using knowledge-base fallback");
+        log.warn("Local AI service failed for chat — using local knowledge base");
         return FarmingKnowledge.findReply(message);
     }
 
     public String detectDisease(String base64Image, String cropName, String mimeType) {
-        String visionPrompt = "You are an expert agricultural scientist helping Indian farmers. " +
-                "Analyze this " + cropName + " crop image. " +
-                "Identify any disease, pest, or nutrient deficiency. Respond in this exact format:\n" +
-                "ISSUE: <name>\nSEVERITY: Mild|Moderate|Severe\nCAUSE: <cause>\n" +
-                "SYMPTOMS: <visible signs>\nTREATMENT: <step by step>\n" +
-                "PREVENTION: <future prevention>\nURGENCY: Act immediately|Within a week|Monitor closely";
-
-        // 1. Try Grok Vision first (primary)
-        if (grokService.isConfigured()) {
-            String grokReply = grokService.analyzeImage(visionPrompt, base64Image, mimeType);
-            if (grokReply != null && !grokReply.isBlank()) {
-                log.info("Disease detection: Grok Vision succeeded");
-                return grokReply;
-            }
-            log.warn("Grok Vision failed — falling through to Groq Vision");
+        try {
+            String body = MAPPER.writeValueAsString(Map.of(
+                    "base64Image", base64Image,
+                    "cropName", cropName,
+                    "mimeType", mimeType != null ? mimeType : "image/jpeg"
+            ));
+            String reply = callLocalAi("/api/ai/disease", body);
+            if (reply != null && !reply.isBlank()) return reply;
+        } catch (Exception e) {
+            log.error("Error formatting local disease detection request: {}", e.getMessage());
         }
-
-        // 2. Try Groq Vision (fallback #1)
-        if (groqService.isConfigured()) {
-            String groqReply = groqService.analyzeImage(visionPrompt, base64Image, mimeType);
-            if (groqReply != null && !groqReply.isBlank()) {
-                log.info("Disease detection: Groq Vision succeeded");
-                return groqReply;
-            }
-            log.warn("Groq Vision failed — falling through to Gemini Vision");
-        }
-
-        // 2. Fall back to Gemini Vision
-        String prompt = "You are an expert agricultural scientist helping Indian farmers. " +
-                "Analyze this " + cropName + " crop image. " +
-                "Identify any disease, pest, or nutrient deficiency. " +
-                "Respond in this exact format:\n" +
-                "ISSUE: <name>\n" +
-                "SEVERITY: Mild|Moderate|Severe\n" +
-                "CAUSE: <what causes this>\n" +
-                "SYMPTOMS: <visible signs>\n" +
-                "TREATMENT: <step by step>\n" +
-                "PREVENTION: <future prevention>\n" +
-                "URGENCY: Act immediately|Within a week|Monitor closely\n" +
-                "Use simple language an Indian farmer can understand.";
-
-        String body = "{"
-                + "\"contents\":[{"
-                + "\"parts\":["
-                + "{\"inline_data\":{\"mime_type\":\"" + safe(mimeType, "image/jpeg") + "\",\"data\":\"" + base64Image + "\"}},"
-                + "{\"text\":\"" + escapeJson(prompt) + "\"}"
-                + "]"
-                + "}]}";
-
-        String reply = callGeminiRaw(body);
-        if (reply == null || reply.isBlank()) {
-            log.warn("Gemini disease detection failed for crop {} — using fallback", cropName);
-            return "ISSUE: Unable to analyze image\n" +
-                    "SEVERITY: Mild\n" +
-                    "CAUSE: AI service temporarily unavailable\n" +
-                    "SYMPTOMS: Could not process the image\n" +
-                    "TREATMENT: Please consult your local agriculture extension officer (KVK)\n" +
-                    "PREVENTION: Take a clearer photo in daylight and try again\n" +
-                    "URGENCY: Monitor closely";
-        }
-        return reply;
+        return "ISSUE: Local AI Offline\n" +
+                "SEVERITY: Mild\n" +
+                "CAUSE: Local AI service is not running on localhost:8000\n" +
+                "SYMPTOMS: Connection refused\n" +
+                "TREATMENT: Start the local AI service using run_setup.bat\n" +
+                "PREVENTION: Ensure Python service is active\n" +
+                "URGENCY: Act immediately";
     }
 
     public String getCropAdvice(String season, String location, String soilType, String waterAvailability) {
-        String systemPrompt = "You are an expert agricultural advisor for Indian farmers. " +
-                "Suggest 3 best crops to grow right now. " +
-                "For each crop provide: CROP NAME, WHY SUITABLE, EXPECTED YIELD, MARKET PRICE, DEMAND, CARE TIPS, PROFIT ESTIMATE.\n" +
-                "Be specific and practical for Indian farming.";
-        String userMsg = "Location: " + safe(location, "India") +
-                ". Season: " + safe(season, "current") +
-                ". Soil type: " + safe(soilType, "loamy") +
-                ". Water: " + safe(waterAvailability, "moderate");
-
-        if (grokService.isConfigured()) {
-            String r = grokService.chat(systemPrompt, userMsg, null);
-            if (r != null && !r.isBlank()) return r;
+        try {
+            String body = MAPPER.writeValueAsString(Map.of(
+                    "season", season,
+                    "location", location,
+                    "soilType", soilType,
+                    "waterAvailability", waterAvailability
+            ));
+            String reply = callLocalAi("/api/ai/crop-advice", body);
+            if (reply != null && !reply.isBlank()) return reply;
+        } catch (Exception e) {
+            log.error("Error formatting local crop advice request: {}", e.getMessage());
         }
-        if (groqService.isConfigured()) {
-            String r = groqService.chat(systemPrompt, userMsg);
-            if (r != null && !r.isBlank()) return r;
-        }
-        String reply = tryGemini(systemPrompt + "\n\n" + userMsg);
-        if (reply != null && !reply.isBlank()) return reply;
-        log.warn("All AI providers failed for crop advice — using fallback");
+        log.warn("Local AI service failed for crop advice — using local fallback");
         return FarmingKnowledge.cropAdviceFallback(season, location, soilType, waterAvailability);
     }
 
     public String getPriceForecast(String cropName, String location) {
-        String systemPrompt = "You are an agricultural market analyst for India. " +
-                "Include: CURRENT PRICE RANGE, PRICE TREND (Rising/Falling/Stable), " +
-                "NEXT 30 DAYS FORECAST, BEST TIME TO SELL, FACTORS, NEARBY MARKETS, TIPS.";
-        String userMsg = "Provide market analysis for " + safe(cropName, "crop") + " in " + safe(location, "India") + ".";
-
-        if (grokService.isConfigured()) {
-            String r = grokService.chat(systemPrompt, userMsg, null);
-            if (r != null && !r.isBlank()) return r;
+        try {
+            String body = MAPPER.writeValueAsString(Map.of(
+                    "cropName", cropName,
+                    "location", location
+            ));
+            String reply = callLocalAi("/api/ai/price-forecast", body);
+            if (reply != null && !reply.isBlank()) return reply;
+        } catch (Exception e) {
+            log.error("Error formatting local price forecast request: {}", e.getMessage());
         }
-        if (groqService.isConfigured()) {
-            String r = groqService.chat(systemPrompt, userMsg);
-            if (r != null && !r.isBlank()) return r;
-        }
-        String reply = tryGemini(systemPrompt + "\n\n" + userMsg);
-        if (reply != null && !reply.isBlank()) return reply;
-        log.warn("All AI providers failed for price forecast — using fallback");
+        log.warn("Local AI service failed for price forecast — using local fallback");
         return FarmingKnowledge.priceForecastFallback(cropName, location);
     }
 
