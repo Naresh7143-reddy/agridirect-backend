@@ -14,12 +14,43 @@ Spring Boot REST API for the AgriDirect farm-to-consumer marketplace.
 
 ## How to Run
 
-1. Copy `.env.example` to `.env` and fill in all values (see Environment Variables below).
-2. Start the server:
+### Quick Start - With Custom AI
+
+1. **Install Python 3.10+** from https://www.python.org/downloads/
+   - ✅ Check "Add Python to PATH" during installation
+
+2. **Setup & Train AI Models** (first time only):
+   ```powershell
+   cd local_ai_service
+   .\run_setup.bat
    ```
+   ⏱️ Takes 10-15 minutes (trains models, starts FastAPI on port 8000)
+
+3. **Start Backend** (in new PowerShell):
+   ```powershell
    mvn spring-boot:run
    ```
-   The API listens on **port 8001**.
+   The API listens on **port 8001**
+
+4. **Test AI Integration**:
+   ```powershell
+   curl -X POST http://localhost:8001/api/farmer/ai/chat `
+     -H "Content-Type: application/json" `
+     -d '{"message":"Hello","language":"English"}'
+   ```
+
+### Regular Start - After Setup
+
+Keep both services running:
+- **Terminal 1**: `cd local_ai_service && .\start_server.bat` (AI on port 8000)
+- **Terminal 2**: `mvn spring-boot:run` (Backend on port 8001)
+
+### Setup Details
+
+See detailed setup guides:
+- **SETUP_AND_TEST.md** - Step-by-step guide
+- **QUICK_START.txt** - One-page reference
+- **AI_TESTING_GUIDE.md** - API testing procedures
 
 ## Environment Variables
 
@@ -34,12 +65,50 @@ Spring Boot REST API for the AgriDirect farm-to-consumer marketplace.
 | `RAZORPAY_KEY_ID` | Razorpay API key |
 | `RAZORPAY_KEY_SECRET` | Razorpay API secret |
 | `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook signature secret |
-| `GEMINI_API_KEY` | Google Gemini API key |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 | `REDIS_HOST` | Redis host (default `localhost`) |
 | `REDIS_PORT` | Redis port (default `6379`) |
+
+> **Note**: GEMINI_API_KEY, XAI_API_KEY, GROQ_API_KEY are **optional**. Backend uses local AI service by default!
+
+---
+
+## 🌾 Custom AI Integration
+
+Your backend now uses **self-hosted AI models** with no third-party API costs:
+
+- ✅ **Chatbot** - TF-IDF + Neural Network (local inference)
+- ✅ **Disease Detection** - PyTorch CNN (image analysis)
+- ✅ **Crop Advice** - Rule-based recommender
+- ✅ **Price Forecast** - ML-based price predictor
+
+### Architecture
+
+```
+Backend (Port 8001)
+    ↓ HTTP
+Local AI Service (Port 8000 - FastAPI)
+    ├── Chatbot
+    ├── Disease Detection
+    ├── Crop Advice
+    └── Price Forecast
+```
+
+### Files
+
+- `local_ai_service/app.py` - FastAPI server
+- `local_ai_service/train_chatbot.py` - Chatbot training
+- `local_ai_service/train_disease.py` - Disease model training
+- `local_ai_service/run_setup.bat` - First-time setup
+- `local_ai_service/start_server.bat` - Quick start (after setup)
+
+### Documentation
+
+- **SETUP_AND_TEST.md** - Complete setup steps
+- **AI_IMPLEMENTATION_SUMMARY.md** - Architecture details
+- **AI_TESTING_GUIDE.md** - API testing examples
 
 ## Database Tables (10)
 
